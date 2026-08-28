@@ -1,0 +1,5 @@
+# 素材 catalog：asset_tag -> 静态资源 URL。LLM 只回 tag，URL 由此处解析（原则 #7）。
+# 周六 Web/图片工作接入真实静态资源，替换这里的路径即可。
+storefront: /static/assets/storefront.svg
+bay_scene: /static/assets/bay_scene.svg
+beach_photo: /static/assets/beach_photo.svg

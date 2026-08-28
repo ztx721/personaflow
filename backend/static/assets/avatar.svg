@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">林小满头像</title>
+  <desc id="desc">暖色调的旧书店店主头像</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f1d8bb"/><stop offset="1" stop-color="#a97458"/></linearGradient></defs>
+  <rect width="240" height="240" rx="52" fill="url(#bg)"/><circle cx="120" cy="105" r="54" fill="#f5cfae"/>
+  <path d="M66 109c2-52 25-78 58-78 42 0 59 31 52 86-12-14-21-30-25-48-15 22-45 38-85 40Z" fill="#49362f"/>
+  <path d="M49 229c7-49 30-74 71-74s65 25 72 74" fill="#54665c"/>
+  <circle cx="101" cy="111" r="4" fill="#49362f"/><circle cx="140" cy="111" r="4" fill="#49362f"/>
+  <path d="M107 133c8 7 18 7 26 0" fill="none" stroke="#a65b55" stroke-width="4" stroke-linecap="round"/>
+</svg>

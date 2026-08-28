@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-labelledby="title desc">
+  <title id="title">小满的海边照片</title><desc id="desc">拍立得风格的海边旅行照片</desc>
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#6da9c5"/><stop offset="1" stop-color="#d6e8e3"/></linearGradient><linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#4697ac"/><stop offset="1" stop-color="#17687c"/></linearGradient></defs>
+  <rect width="800" height="1000" fill="#f5efe4"/><rect x="52" y="52" width="696" height="770" rx="4" fill="url(#sky)"/><path d="M52 390h696v432H52Z" fill="url(#sea)"/><path d="M52 720c170-68 329-20 486 102H52Z" fill="#dfc18e"/>
+  <path d="M52 475c150 35 260-26 410 6s182-14 286 3M52 620c170-39 284 37 444 2s181 19 252 10" fill="none" stroke="#d5f1ec" stroke-width="10" opacity=".75"/><circle cx="604" cy="216" r="74" fill="#f8dd9a"/>
+  <g transform="translate(354 455)"><circle cx="46" cy="46" r="37" fill="#ecc5a4"/><path d="M10 47C6 2 30-17 54 7c29 4 34 23 27 53-17-8-31-21-39-38-8 13-19 21-32 25Z" fill="#42332f"/><path d="M0 170c5-65 31-98 78-98s71 33 76 98" fill="#e9e1d2"/><path d="m86 101 66 55" stroke="#9b5b4d" stroke-width="12" stroke-linecap="round"/></g>
+  <text x="400" y="900" text-anchor="middle" font-size="38" fill="#735a48" font-family="cursive">那天风很大，但海很好看。</text><text x="400" y="948" text-anchor="middle" font-size="24" fill="#9a806a" font-family="sans-serif">LIN XIAOMAN · SUMMER</text>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-labelledby="title desc">
+  <title id="title">傍晚海湾</title><desc id="desc">柔和晚霞下安静的海湾与远山</desc>
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#7c8fb5"/><stop offset=".55" stop-color="#e2a98e"/><stop offset="1" stop-color="#f4d4a7"/></linearGradient><linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#668fa0"/><stop offset="1" stop-color="#234f62"/></linearGradient></defs>
+  <rect width="960" height="390" fill="url(#sky)"/><circle cx="720" cy="205" r="72" fill="#f8d6a0" opacity=".9"/><path d="M0 350 160 245l110 92 125-122 170 140 115-102 280 100v55H0Z" fill="#566776"/>
+  <path d="M0 390h960v250H0Z" fill="url(#sea)"/><path d="M0 454c180 24 300-25 480 3s310-25 480 4M0 535c190-22 310 18 485-4s304 21 475-3" fill="none" stroke="#b7d3d4" stroke-width="7" opacity=".45"/><path d="M0 590c215-66 365-34 530 50H0Z" fill="#d9bd90"/>
+</svg>

@@ -1,0 +1,60 @@
+story_id: travel_photo
+title: 旅行照片
+description: 林小满和顾客聊起上周去海边的短途旅行，最后分享了一张她拍的照片。
+trigger: on_first_message
+entry_node: greeting
+
+nodes:
+  greeting:
+    scene: 傍晚的旧书店，暖黄的灯光，林小满正踮脚整理书架。
+    beat: 与顾客打招呼，接住对方开口的第一句话。
+    on_enter:
+      emit_asset: storefront
+    transitions:
+      - to: rapport
+        hint: 顾客提到忙了一天 / 终于休息 / 下班
+        reason: USER_OPENING
+        when: [忙完了, 终于, 下班, 好累, 休息]
+
+  rapport:
+    scene: 柜台前，林小满放下手里的书，微笑着看着顾客。
+    beat: 拉近距离，试探顾客周末的打算。
+    transitions:
+      - to: weekend
+        hint: 顾客提到周末 / 放假 / 想出去
+        reason: USER_WEEKEND
+        when: [周末, 放假, 假期, 出去]
+
+  weekend:
+    scene: 林小满望向窗外，语气轻快起来，像想到了什么高兴的事。
+    beat: 引导顾客说出对旅行的兴趣。
+    on_enter:
+      emit_asset: bay_scene
+    transitions:
+      - to: beach_trip
+        hint: 顾客提到海边 / 旅行 / 出去玩
+        reason: USER_TRAVEL
+        when: [海边, 旅行, 旅游, 出去玩, 玩]
+
+  beach_trip:
+    scene: 回忆起海边的日子，林小满眼神发亮。
+    beat: 讲一段海边旅行的经历，把话题引向她拍过的照片。
+    transitions:
+      - to: photo_offer
+        hint: 顾客对海边经历感兴趣 / 追问细节
+        reason: USER_INTEREST
+        when: [去过, 哪, 海, 有意思, 然后]
+
+  photo_offer:
+    scene: 林小满低头翻手机相册，指尖在屏幕上轻轻划过。
+    beat: 透露出拍过照片，等着顾客开口说想看看。
+    transitions:
+      - to: photo_sent
+        hint: 顾客想看照片 / 让我看看
+        reason: USER_PHOTO_REQUEST
+        when: [给我看看, 看看, 想看, 发我]
+        emit_asset: beach_photo
+
+  photo_sent:
+    scene: 林小满把手机转过来，屏幕上是一张傍晚海边的照片。
+    beat: 分享照片，收尾这场对话。
