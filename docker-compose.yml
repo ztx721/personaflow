@@ -1,0 +1,24 @@
+services:
+  personaflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: personaflow:demo
+    init: true
+    ports:
+      - "8000:8000"
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/personaflow.db}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - personaflow-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  personaflow-data:

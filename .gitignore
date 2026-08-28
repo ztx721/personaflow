@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.tsbuildinfo
+.env
+
+# 运行时数据
+backend/data/
+*.db
+backend/tests/test_personaflow.db
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+frontend/e2e/artifacts/
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
