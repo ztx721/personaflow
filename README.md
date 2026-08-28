@@ -3,8 +3,8 @@
 **Stateful AI Character Conversation Engine**
 
 Live Demo: _deployment pending_  
-Docker: `ghcr.io/<owner>/personaflow:demo`  
-GitHub: current repository
+Docker: `ghcr.io/ztx721/personaflow:demo`  
+GitHub: [github.com/ztx721/personaflow](https://github.com/ztx721/personaflow)
 
 PersonaFlow is a technical interview demo for stateful, controllable AI character conversations. A user chats one-to-one with **林小满**, while the engine maintains emotion, relationship and story state, validates structured planner output, and only emits trusted media assets after deterministic business checks.
 
@@ -75,7 +75,7 @@ The governing rule is: **the model proposes; application code decides**.
 ## Quick Start with Docker
 
 ```bash
-git clone https://github.com/<owner>/personaflow.git
+git clone https://github.com/ztx721/personaflow.git
 cd personaflow
 docker compose up --build
 ```
@@ -238,8 +238,8 @@ DATABASE_URL=sqlite:////data/personaflow.db
 GitHub Actions validates backend, frontend and Docker on every push/PR. Successful pushes to `main` publish:
 
 ```text
-ghcr.io/<owner>/personaflow:demo
-ghcr.io/<owner>/personaflow:latest
+ghcr.io/ztx721/personaflow:demo
+ghcr.io/ztx721/personaflow:latest
 ```
 
 The same image can be deployed as one service on any platform that accepts Docker/OCI images. Persistent storage is optional for this demo; set the health check path to `/health`.
