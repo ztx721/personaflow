@@ -13,9 +13,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY pyproject.toml ./
+COPY backend/ ./backend/
 RUN pip install --no-cache-dir .
 
-COPY backend/ ./backend/
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist/
 
 RUN useradd --create-home --uid 10001 appuser \
