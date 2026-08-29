@@ -2,13 +2,13 @@
 
 **Stateful AI Character Conversation Engine**
 
-Live Demo: _deployment pending_  
-Docker: `ghcr.io/ztx721/personaflow:demo`  
+Live Demo: [personaflow-production.up.railway.app](https://personaflow-production.up.railway.app)<br>
+Docker: `ghcr.io/ztx721/personaflow:demo`<br>
 GitHub: [github.com/ztx721/personaflow](https://github.com/ztx721/personaflow)
 
 PersonaFlow is a technical interview demo for stateful, controllable AI character conversations. A user chats one-to-one with **林小满**, while the engine maintains emotion, relationship and story state, validates structured planner output, and only emits trusted media assets after deterministic business checks.
 
-The default build uses a deterministic `MockProvider`, so the complete demo works without an API key.
+The default build uses a deterministic `MockProvider`, so the complete demo works without an API key. Set `LLM_PROVIDER=anthropic` for natural free-form character dialogue backed by Claude while keeping the same application-owned state and story controls.
 
 ## Demo screenshots
 
@@ -113,6 +113,18 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api`, `/static` and `/health` to FastAPI on port 8001.
 
+### Real LLM mode
+
+Mock remains the default for pytest, CI and the deterministic Golden Path. For normal character chat, copy `.env.example` to `.env` and set:
+
+```env
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=your_server_side_key
+ANTHROPIC_MODEL=claude-sonnet-5
+```
+
+The real provider uses two validated calls per turn: a Pydantic `PlannerOutput`, followed by a Pydantic `Utterance`. Modular prompt sections keep persona, state, story guidance and the approved response plan separate. Generator output is rejected if it contains node markers, story instructions, prompt/schema metadata or other internal control text. Provider failures return a short safe reply and record only sanitized error labels in `TurnLog`.
+
 ## Golden Path
 
 Start a new conversation and send these six messages in order:
@@ -189,7 +201,7 @@ PersonaFlow/
 │   ├── app/
 │   │   ├── api/          # Conversation, role and read-only debug endpoints
 │   │   ├── core/         # Conversation orchestration, StoryEngine, rules, assets
-│   │   ├── llm/          # Provider contract and deterministic MockProvider
+│   │   ├── llm/          # Provider contract, prompts, Mock and Anthropic providers
 │   │   └── models/       # SQLAlchemy persistence models
 │   ├── config/           # Persona, story and asset YAML
 │   ├── static/assets/    # Trusted demo media
@@ -208,6 +220,8 @@ PersonaFlow/
 - **Single deployable container:** simplest reliable interview setup; no nginx or extra services.
 - **Two-stage AI pipeline:** Planner behavior is inspectable separately from generated language.
 - **Pydantic at the model boundary:** malformed structured output never reaches business logic.
+- **Separate real and deterministic modes:** Anthropic powers free-form chat; Mock remains stable for tests and demos.
+- **Generator postcondition:** internal story/planner text is rejected before it can reach the user.
 - **Deterministic StoryEngine:** graph transitions are legal only when configured and validated.
 - **Trusted asset catalog:** LLM output is restricted to an `asset_tag`, never an arbitrary URL.
 - **SQLite and synchronous SQLAlchemy:** sufficient and easy to inspect for a single-process demo.
@@ -216,7 +230,7 @@ PersonaFlow/
 ## Current limitations
 
 - One character and one six-node story.
-- Deterministic MockProvider is the supported demo path; real-provider integration is not part of this release.
+- Real-provider mode requires a server-side Anthropic API key and makes two model calls per user turn.
 - No authentication or user isolation.
 - No long-term/vector memory; continuity uses recent messages and persisted conversation state.
 - SQLite is designed for this single-process demo, not horizontally scaled production traffic.
@@ -224,7 +238,7 @@ PersonaFlow/
 
 ## Security / demo disclosure
 
-This is an interview demo, not a production multi-tenant service. It intentionally has no login, authorization, abuse controls or rate limiting. Do not expose private data through a public deployment. No secret is required in Mock mode; `.env` is ignored and only `.env.example` is committed. Media URLs come exclusively from the checked-in asset catalog.
+This is an interview demo, not a production multi-tenant service. It intentionally has no login, authorization, abuse controls or rate limiting. Do not expose private data through a public deployment. No secret is required in Mock mode; real-provider keys must stay in server-side environment variables. `.env` is ignored and only `.env.example` is committed. Provider exceptions and prompts are never returned to chat clients. Media URLs come exclusively from the checked-in asset catalog.
 
 ## Deployment
 
@@ -234,6 +248,8 @@ The Docker image listens on port `8000` and exposes `GET /health` for platform h
 LLM_PROVIDER=mock
 DATABASE_URL=sqlite:////data/personaflow.db
 ```
+
+For an online natural-language demo, override `LLM_PROVIDER=anthropic` and configure `ANTHROPIC_API_KEY` as a platform secret. Keep health checks on `/health`; the API remains available even when the provider is unavailable because each turn has a safe fallback.
 
 GitHub Actions validates backend, frontend and Docker on every push/PR. Successful pushes to `main` publish:
 

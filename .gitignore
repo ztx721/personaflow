@@ -26,3 +26,7 @@ frontend/vite.config.d.ts
 .DS_Store
 Thumbs.db
 *.log
+
+# Local Codex runtime diagnostics
+.codex-anaconda-partial-cleanup.ps1
+.codex-handle-diagnostic/

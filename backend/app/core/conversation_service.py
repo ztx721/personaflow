@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..llm import LLMClient
+from ..llm.errors import error_label
 from ..models import (
     Conversation,
     ConversationState as ConversationStateORM,
@@ -24,6 +25,7 @@ from ..schemas import (
     Emotion,
     GeneratorContext,
     PlannerContext,
+    PlannerOutput,
     PersonaConfig,
     StoryContext,
 )
@@ -33,6 +35,9 @@ from .story_engine import StoryEngine
 
 
 class ConversationService:
+    FALLBACK_REPLY = "抱歉，我刚刚有点走神了。你愿意再说一遍吗？"
+    FALLBACK_INTENT = "温和回应用户最后一句，不推进剧情，也不要声称发送了图片。"
+
     def __init__(
         self,
         db: Session,
@@ -128,9 +133,14 @@ class ConversationService:
                 applied["story_enter"] = {"node": story.entry_node}
 
         # 4) 规划（LLM #1）
-        plan = self.llm.plan(
-            self._planner_context(persona, state, story, story_state, content)
+        planner_context = self._planner_context(
+            persona, state, story, story_state, content
         )
+        try:
+            plan = self.llm.plan(planner_context)
+        except Exception as exc:
+            errors.append(error_label("planner", exc))
+            plan = PlannerOutput(response_intent=self.FALLBACK_INTENT)
 
         # 5) 规则层应用提议（LLM 提议，代码裁决）
         apply_emotion(state, plan.emotion_proposal)
@@ -172,9 +182,14 @@ class ConversationService:
         asset_url = self.assets.resolve(asset_tag)
 
         # 6) 生成台词（LLM #2）
-        reply = self.llm.generate(
-            self._generator_context(persona, state, story, story_state, content, plan, asset_tag)
+        generator_context = self._generator_context(
+            persona, state, story, story_state, content, plan, asset_tag
         )
+        try:
+            reply = self.llm.generate(generator_context)
+        except Exception as exc:
+            errors.append(error_label("generator", exc))
+            reply = self.FALLBACK_REPLY
 
         # 7) 持久化：角色消息 + 状态 + 剧情 + 决策日志（同一事务）
         char_msg = Message(
