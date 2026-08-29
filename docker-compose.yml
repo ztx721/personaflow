@@ -11,6 +11,8 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/personaflow.db}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
     volumes:
       - personaflow-data:/data
     healthcheck:

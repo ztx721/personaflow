@@ -15,4 +15,8 @@ def get_llm() -> LLMClient:
         from .anthropic import AnthropicLLMClient
 
         return AnthropicLLMClient()
+    if settings.llm_provider == "deepseek":
+        from .deepseek import DeepSeekLLMClient
+
+        return DeepSeekLLMClient()
     raise ValueError(f"未知 LLM provider: {settings.llm_provider}")

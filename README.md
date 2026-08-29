@@ -230,7 +230,7 @@ PersonaFlow/
 ## Current limitations
 
 - One character and one six-node story.
-- Real-provider mode requires a server-side Anthropic API key and makes two model calls per user turn.
+- Real-provider mode requires a server-side Anthropic or DeepSeek API key and makes two model calls per user turn.
 - No authentication or user isolation.
 - No long-term/vector memory; continuity uses recent messages and persisted conversation state.
 - SQLite is designed for this single-process demo, not horizontally scaled production traffic.
@@ -249,7 +249,20 @@ LLM_PROVIDER=mock
 DATABASE_URL=sqlite:////data/personaflow.db
 ```
 
-For an online natural-language demo, override `LLM_PROVIDER=anthropic` and configure `ANTHROPIC_API_KEY` as a platform secret. Keep health checks on `/health`; the API remains available even when the provider is unavailable because each turn has a safe fallback.
+For an online natural-language demo, use either Anthropic or DeepSeek as a server-side provider:
+
+```env
+# Anthropic
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=...
+
+# Or DeepSeek (the only accepted DeepSeek model is deepseek-v4-flash)
+LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=...
+DEEPSEEK_MODEL=deepseek-v4-flash
+```
+
+Keep health checks on `/health`; the API remains available after per-turn provider failures because each turn has a safe fallback. Missing DeepSeek credentials or any other DeepSeek model fail fast during provider creation.
 
 GitHub Actions validates backend, frontend and Docker on every push/PR. Successful pushes to `main` publish:
 

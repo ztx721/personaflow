@@ -300,9 +300,16 @@ class ConversationService:
         )
 
     def _recent_turns(self, conversation_id: str) -> list[ChatTurn]:
+        q = (
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(settings.context_window)
+        )
+        messages = list(reversed(list(self.db.scalars(q))))
         return [
             ChatTurn(sender=m.sender, content=m.content)
-            for m in self.list_messages(conversation_id, limit=settings.context_window)
+            for m in messages
         ]
 
     # ------------------------------------------------------------------
