@@ -53,8 +53,15 @@ jobs:
         run: |
           docker run -d --name personaflow-ci -p 8000:8000 personaflow:ci
           trap 'docker rm -f personaflow-ci' EXIT
-          curl --fail --retry 12 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/health
-          curl --fail http://127.0.0.1:8000/
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:8000/health; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "${ready:-0}" = "1"
+          curl --fail --silent --show-error http://127.0.0.1:8000/ > /dev/null
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v4
