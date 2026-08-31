@@ -14,6 +14,7 @@ from ..schemas import (
     GeneratorContext,
     PlannerContext,
     PlannerOutput,
+    SocialAction,
     StoryProposal,
 )
 from .client import LLMClient
@@ -55,6 +56,7 @@ class MockLLMClient(LLMClient):
         proposal = self._detect_transition(ctx)
         return PlannerOutput(
             response_intent=self._intent(ctx, proposal),
+            social_action=self._social_action(ctx),
             emotion_proposal=self._detect_emotion(text),
             relationship_delta={axis: 1 for axis in ctx.state.relationship},
             topic_proposal=self._detect_topic(text),
@@ -62,6 +64,19 @@ class MockLLMClient(LLMClient):
             asset_request=self._detect_asset_request(ctx),
             memory_candidates=[],
         )
+
+    @staticmethod
+    def _social_action(ctx: PlannerContext) -> SocialAction:
+        signals = ctx.conversation_signals
+        if signals.minimal_acknowledgement:
+            return SocialAction.acknowledge
+        if signals.emotional_cue.value == "negative":
+            return SocialAction.comfort
+        if signals.topic_shift:
+            return SocialAction.change_topic
+        if signals.asks_direct_question or signals.asks_for_clarification:
+            return SocialAction.answer
+        return SocialAction.reply
 
     def generate(self, ctx: GeneratorContext) -> str:
         node_id = ctx.story.node_id if ctx.story else "chat"

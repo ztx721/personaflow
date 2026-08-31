@@ -22,6 +22,7 @@ BASE_URL = "https://api.deepseek.com"
 
 _PLANNER_EXAMPLE = {
     "response_intent": "Respond naturally to the latest message.",
+    "social_action": "reply",
     "emotion_proposal": None,
     "relationship_delta": {},
     "topic_proposal": None,
@@ -111,6 +112,8 @@ class DeepSeekLLMClient(LLMClient):
                 "mentioning photos, asking whether a photo was taken, or discussing "
                 "how it looks is not a photo request.",
                 "Use exactly these PlannerOutput fields: response_intent (string), "
+                "social_action (one of acknowledge, reply, short_reply, answer, "
+                "ask_back, tease, comfort, avoid, change_topic, open_up, refuse), "
                 "emotion_proposal (null or object with emotion chosen from neutral, "
                 "happy, excited, calm, sad, angry, worried, shy, embarrassed, or "
                 "grateful, plus integer intensity from 0 to 100), relationship_delta "

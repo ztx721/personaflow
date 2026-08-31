@@ -47,6 +47,44 @@ class RelationshipInit(BaseModel):
     )
 
 
+class SocialAction(str, Enum):
+    acknowledge = "acknowledge"
+    reply = "reply"
+    short_reply = "short_reply"
+    answer = "answer"
+    ask_back = "ask_back"
+    tease = "tease"
+    comfort = "comfort"
+    avoid = "avoid"
+    change_topic = "change_topic"
+    open_up = "open_up"
+    refuse = "refuse"
+
+
+class SocialTraitLevel(str, Enum):
+    low = "low"
+    medium_low = "medium_low"
+    medium = "medium"
+    medium_high = "medium_high"
+    high = "high"
+
+
+class PersonaSocialPolicy(BaseModel):
+    preferred_reply_length: Literal["very_short", "short", "normal"] = "short"
+    initiative: SocialTraitLevel = SocialTraitLevel.medium
+    warmth: SocialTraitLevel = SocialTraitLevel.medium
+    teasing: SocialTraitLevel = SocialTraitLevel.medium
+    shyness: SocialTraitLevel = SocialTraitLevel.medium
+    directness: SocialTraitLevel = SocialTraitLevel.medium
+    openness: SocialTraitLevel = SocialTraitLevel.medium
+    patience: SocialTraitLevel = SocialTraitLevel.medium
+    followup_question_frequency: SocialTraitLevel = SocialTraitLevel.medium
+    preferred_actions: list[SocialAction] = Field(default_factory=list)
+    restrained_actions: list[SocialAction] = Field(default_factory=list)
+    habits: list[str] = Field(default_factory=list)
+    avoids: list[str] = Field(default_factory=list)
+
+
 class PersonaConfig(BaseModel):
     role_id: str
     display_name: str
@@ -55,6 +93,7 @@ class PersonaConfig(BaseModel):
     persona: PersonaDetails = Field(default_factory=PersonaDetails)
     emotion: EmotionInit = Field(default_factory=EmotionInit)
     relationship: RelationshipInit = Field(default_factory=RelationshipInit)
+    social_behavior: PersonaSocialPolicy = Field(default_factory=PersonaSocialPolicy)
     default_story: str | None = None
 
 
@@ -149,6 +188,7 @@ class PlannerOutput(BaseModel):
     """Planner 的输出 = 一份『行为提案』，不是指令（原则 A：LLM 只提议，代码才裁决）。"""
 
     response_intent: str = ""
+    social_action: SocialAction = SocialAction.reply
     emotion_proposal: EmotionProposal | None = None
     relationship_delta: dict[str, int] = Field(default_factory=dict)
     topic_proposal: str | None = None
@@ -165,6 +205,82 @@ class Utterance(BaseModel):
 # ---------------------------------------------------------------------------
 # LLM 调用上下文（LLMClient.plan / generate 的输入，provider 无关）
 # ---------------------------------------------------------------------------
+
+class UserAct(str, Enum):
+    statement = "statement"
+    direct_question = "direct_question"
+    clarification = "clarification"
+    acknowledgement = "acknowledgement"
+    emotional_disclosure = "emotional_disclosure"
+    topic_switch = "topic_switch"
+    image_request = "image_request"
+    other = "other"
+
+
+class EmotionalCue(str, Enum):
+    none = "none"
+    negative = "negative"
+    positive = "positive"
+    recovery = "recovery"
+
+
+class ResponseMode(str, Enum):
+    brief = "brief"
+    normal = "normal"
+    direct = "direct"
+    clarify = "clarify"
+    supportive = "supportive"
+
+
+class TargetLength(str, Enum):
+    very_short = "very_short"
+    short = "short"
+    normal = "normal"
+
+
+class FollowupPreference(str, Enum):
+    none = "none"
+    optional = "optional"
+    useful_only = "useful_only"
+
+
+class ConversationSignals(BaseModel):
+    latest_user_act: UserAct = UserAct.statement
+    emotional_cue: EmotionalCue = EmotionalCue.none
+    topic_shift: bool = False
+    asks_direct_question: bool = False
+    asks_for_clarification: bool = False
+    references_previous_turn: bool = False
+    minimal_acknowledgement: bool = False
+    user_requests_detail: bool = False
+    repetition_risk: bool = False
+    user_disengagement: bool = False
+    asks_personal_question: bool = False
+
+
+class ConversationalPressure(str, Enum):
+    low = "low"
+    normal = "normal"
+
+
+class ResponseGuidance(BaseModel):
+    response_mode: ResponseMode = ResponseMode.normal
+    target_length: TargetLength = TargetLength.short
+    acknowledge_emotion: bool = False
+    answer_before_followup: bool = False
+    may_ask_question: bool = False
+    followup_preference: FollowupPreference = FollowupPreference.useful_only
+    continuity_anchor: str | None = None
+    avoid_repetition: bool = False
+    conversational_pressure: ConversationalPressure = ConversationalPressure.normal
+
+
+class SocialActionDecision(BaseModel):
+    proposed: SocialAction
+    approved: SocialAction
+    persona_adjusted: bool = False
+    reason: str | None = None
+
 
 class ChatTurn(BaseModel):
     sender: str
@@ -200,6 +316,7 @@ class PlannerContext(BaseModel):
     memory: list[str] = Field(default_factory=list)
     recent_messages: list[ChatTurn] = Field(default_factory=list)
     user_message: str
+    conversation_signals: ConversationSignals = Field(default_factory=ConversationSignals)
 
 
 class GeneratorContext(BaseModel):
@@ -210,6 +327,9 @@ class GeneratorContext(BaseModel):
     user_message: str
     planner: PlannerOutput
     asset_tag: str | None = None
+    conversation_signals: ConversationSignals = Field(default_factory=ConversationSignals)
+    response_guidance: ResponseGuidance = Field(default_factory=ResponseGuidance)
+    social_action: SocialAction = SocialAction.reply
 
 
 # ---------------------------------------------------------------------------

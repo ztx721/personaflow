@@ -21,15 +21,23 @@ from ..models import (
 )
 from ..schemas import (
     ChatTurn,
+    ConversationSignals,
     ConversationState,
     Emotion,
     GeneratorContext,
     PlannerContext,
     PlannerOutput,
     PersonaConfig,
+    ResponseGuidance,
+    SocialAction,
     StoryContext,
 )
 from .asset_service import AssetService
+from .conversation_dynamics import (
+    decide_social_action,
+    derive_conversation_signals,
+    derive_response_guidance,
+)
 from .rules import apply_emotion, apply_relationship, apply_topic, clamp
 from .story_engine import StoryEngine
 
@@ -106,6 +114,8 @@ class ConversationService:
         # 2) 状态视图（规则在此修改，最后回写 ORM）
         orm_state = self.get_state(conversation_id)
         state = self._to_state_view(orm_state, conv.role_id)
+        recent_turns = self._recent_turns(conversation_id)
+        conversation_signals = derive_conversation_signals(content, recent_turns, state)
 
         # 3) 剧情：on_first_message → 进入 entry_node
         story = self.engine.get_story(conv.story_id) if conv.story_id else None
@@ -134,13 +144,23 @@ class ConversationService:
 
         # 4) 规划（LLM #1）
         planner_context = self._planner_context(
-            persona, state, story, story_state, content
+            persona, state, story, story_state, content, recent_turns,
+            conversation_signals,
         )
         try:
             plan = self.llm.plan(planner_context)
         except Exception as exc:
             errors.append(error_label("planner", exc))
             plan = PlannerOutput(response_intent=self.FALLBACK_INTENT)
+
+        social_decision = decide_social_action(
+            plan.social_action,
+            conversation_signals,
+            recent_turns,
+            persona.social_behavior,
+            state,
+        )
+        social_action = social_decision.approved
 
         # 5) 规则层应用提议（LLM 提议，代码裁决）
         apply_emotion(state, plan.emotion_proposal)
@@ -192,15 +212,25 @@ class ConversationService:
 
         asset_url = self.assets.resolve(asset_tag)
 
+        response_guidance = derive_response_guidance(
+            conversation_signals, recent_turns, state, social_action
+        )
+
         # 6) 生成台词（LLM #2）
         generator_context = self._generator_context(
-            persona, state, story, story_state, content, plan, asset_tag
+            persona, state, story, story_state, content, plan, asset_tag,
+            recent_turns, conversation_signals, response_guidance, social_action,
         )
         try:
             reply = self.llm.generate(generator_context)
         except Exception as exc:
             errors.append(error_label("generator", exc))
-            reply = self.FALLBACK_REPLY
+            if conversation_signals.minimal_acknowledgement:
+                reply = "嗯。"
+            elif conversation_signals.user_disengagement:
+                reply = "好。"
+            else:
+                reply = self.FALLBACK_REPLY
 
         # 7) 持久化：角色消息 + 状态 + 剧情 + 决策日志（同一事务）
         char_msg = Message(
@@ -219,6 +249,22 @@ class ConversationService:
         applied["topic"] = state.current_topic
         applied["asset_tag"] = asset_tag
         applied["asset_url"] = asset_url
+        applied["conversation_guidance"] = {
+            "latest_user_act": conversation_signals.latest_user_act.value,
+            "social_action": social_action.value,
+            "social_action_proposed": social_decision.proposed.value,
+            "social_action_approved": social_decision.approved.value,
+            "persona_adjusted": social_decision.persona_adjusted,
+            "persona_policy_reason": social_decision.reason,
+            "emotional_cue": conversation_signals.emotional_cue.value,
+            "topic_shift": conversation_signals.topic_shift,
+            "response_mode": response_guidance.response_mode.value,
+            "target_length": response_guidance.target_length.value,
+            "may_ask_question": response_guidance.may_ask_question,
+            "acknowledge_emotion": response_guidance.acknowledge_emotion,
+            "avoid_repetition": response_guidance.avoid_repetition,
+            "conversational_pressure": response_guidance.conversational_pressure.value,
+        }
         self.db.add(
             TurnLog(
                 conversation_id=conversation_id,
@@ -267,14 +313,17 @@ class ConversationService:
         story,
         story_state,
         content: str,
+        recent_turns: list[ChatTurn],
+        conversation_signals: ConversationSignals,
     ) -> PlannerContext:
         return PlannerContext(
             persona=persona,
             state=state,
             story=self._story_context(story, story_state),
             memory=[],
-            recent_messages=self._recent_turns(state.conversation_id),
+            recent_messages=recent_turns,
             user_message=content,
+            conversation_signals=conversation_signals,
         )
 
     def _generator_context(
@@ -286,15 +335,22 @@ class ConversationService:
         content: str,
         plan,
         asset_tag: str | None,
+        recent_turns: list[ChatTurn],
+        conversation_signals: ConversationSignals,
+        response_guidance: ResponseGuidance,
+        social_action: SocialAction,
     ) -> GeneratorContext:
         return GeneratorContext(
             persona=persona,
             state=state,
             story=self._story_context(story, story_state),
-            recent_messages=self._recent_turns(state.conversation_id),
+            recent_messages=recent_turns,
             user_message=content,
             planner=plan,
             asset_tag=asset_tag,
+            conversation_signals=conversation_signals,
+            response_guidance=response_guidance,
+            social_action=social_action,
         )
 
     def _story_context(self, story, story_state) -> StoryContext | None:
