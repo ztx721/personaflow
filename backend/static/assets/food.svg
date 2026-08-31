@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-labelledby="title desc">
+  <title id="title">一盘家常菜</title><desc id="desc">一盘冒着热气的番茄炒蛋</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b6a284"/><stop offset="1" stop-color="#8d7a5c"/></linearGradient></defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <ellipse cx="400" cy="470" rx="280" ry="46" fill="#3c2b1e" opacity=".5"/>
+  <ellipse cx="400" cy="410" rx="250" ry="120" fill="#f6f1e6" stroke="#d8cdb6" stroke-width="10"/>
+  <ellipse cx="400" cy="392" rx="205" ry="92" fill="#f0e6d0"/>
+  <g fill="#d95f2b"><ellipse cx="330" cy="368" rx="44" ry="30"/><ellipse cx="410" cy="342" rx="38" ry="26"/><ellipse cx="484" cy="376" rx="46" ry="28"/><ellipse cx="370" cy="408" rx="40" ry="26"/><ellipse cx="456" cy="412" rx="42" ry="26"/></g>
+  <g fill="#f5c542"><circle cx="348" cy="352" r="22"/><circle cx="432" cy="336" r="20"/><circle cx="506" cy="360" r="22"/><circle cx="392" cy="394" r="18"/><circle cx="470" cy="398" r="19"/><circle cx="360" cy="392" r="14"/></g>
+  <g fill="#faf7ec"><circle cx="440" cy="370" r="9"/><circle cx="380" cy="360" r="8"/><circle cx="470" cy="390" r="7"/></g>
+  <path d="M250 120c-8-20 10-26 0-46M310 112c-8-20 10-26 0-46M378 108c-8-20 10-26 0-46" fill="none" stroke="#f6efe2" stroke-width="12" stroke-linecap="round" opacity=".85"/>
+  <rect x="340" y="92" width="90" height="34" rx="6" fill="#d8cdb6"/>
+</svg>

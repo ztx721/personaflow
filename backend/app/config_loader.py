@@ -5,11 +5,11 @@ from pathlib import Path
 import yaml
 
 from .config import settings
-from .schemas import PersonaConfig, StoryConfig
+from .schemas import AssetSpec, PersonaConfig, StoryConfig
 
 _personas: dict[str, PersonaConfig] | None = None
 _stories: dict[str, StoryConfig] | None = None
-_assets: dict[str, str] | None = None
+_assets: "AssetCatalog | None" = None
 
 
 def load_personas() -> dict[str, PersonaConfig]:
@@ -62,17 +62,46 @@ def get_story(story_id: str) -> StoryConfig | None:
     return load_stories().get(story_id)
 
 
-def load_assets() -> dict[str, str]:
-    """素材 catalog：asset_tag -> URL 路径。LLM 只回 tag，URL 由此解析（原则 #7）。"""
+class AssetCatalog:
+    """已加载的素材 catalog：既有 id->url 映射（兼容旧 API / 故事路径），也保留完整元数据。
+
+    spec 只含 trusted 静态资源；LLM 提议的语义 tags 由 AssetService.find_best 在此解析。
+    """
+
+    def __init__(self, specs: list[AssetSpec]):
+        self.specs = specs
+        self.url_map: dict[str, str] = {spec.id: spec.url for spec in specs}
+
+    # dict-like 便捷访问（tag -> url），兼容既有调用（_to_response、旧测试）
+    def __getitem__(self, asset_id: str) -> str:
+        return self.url_map[asset_id]
+
+    def __contains__(self, asset_id: str) -> bool:
+        return asset_id in self.url_map
+
+    def get(self, asset_id: str, default: str | None = None) -> str | None:
+        return self.url_map.get(asset_id, default)
+
+    def __len__(self) -> int:
+        return len(self.specs)
+
+
+def load_assets() -> AssetCatalog:
+    """素材 catalog：asset id -> 语义元数据（catalog.yaml）。URL 只在本 catalog 解析（原则 #7）。"""
     global _assets
     if _assets is not None:
         return _assets
 
     path = Path(settings.config_dir) / "assets" / "catalog.yaml"
     if not path.is_file():
-        _assets = {}
+        _assets = AssetCatalog([])
         return _assets
 
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    _assets = dict(raw)
+    specs: list[AssetSpec] = []
+    for asset_id, entry in raw.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"素材条目必须是 dict: {asset_id}")
+        specs.append(AssetSpec.model_validate({"id": asset_id, **entry}))
+    _assets = AssetCatalog(specs)
     return _assets

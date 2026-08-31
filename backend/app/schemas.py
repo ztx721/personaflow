@@ -97,6 +97,23 @@ class StoryConfig(BaseModel):
     nodes: dict[str, StoryNode]
 
 
+class AssetSpec(BaseModel):
+    """可信素材条目（config/assets/catalog.yaml）。语义元数据供会话驱动素材选择。
+
+    story_locked: true 表示该素材只能由剧情 transition.emit_asset 发出
+    （如 beach_photo 必须等剧情推进到 photo_sent），会话驱动选择会跳过它。
+    """
+
+    id: str
+    role_id: str
+    url: str
+    type: str = "image"
+    tags: list[str] = Field(default_factory=list)
+    description: str = ""
+    topics: list[str] = Field(default_factory=list)
+    story_locked: bool = False
+
+
 # ---------------------------------------------------------------------------
 # LLM 输出契约（architecture.md §10.1，所有结构化输出必须过 Pydantic）
 # ---------------------------------------------------------------------------
@@ -117,6 +134,17 @@ class StoryProposal(BaseModel):
     reason: str | None = None
 
 
+class AssetRequest(BaseModel):
+    """Planner 对『会话驱动的素材』的提议。只含语义 tags，绝不允许 URL/路径/资产 id。
+
+    应用侧（AssetService.find_best）负责在 trusted catalog 内解析真正的素材，
+    找不到足够相关的素材时不会发送任何图片（原则：LLM 提议 → 应用裁决）。
+    """
+
+    requested: bool = False
+    tags: list[str] = Field(default_factory=list)
+
+
 class PlannerOutput(BaseModel):
     """Planner 的输出 = 一份『行为提案』，不是指令（原则 A：LLM 只提议，代码才裁决）。"""
 
@@ -127,6 +155,7 @@ class PlannerOutput(BaseModel):
     asset_tag: str | None = None  # 只允许 tag，绝不允许 URL
     story_proposal: StoryProposal | None = None
     memory_candidates: list[MemoryCandidate] = Field(default_factory=list)
+    asset_request: AssetRequest = Field(default_factory=AssetRequest)
 
 
 class Utterance(BaseModel):

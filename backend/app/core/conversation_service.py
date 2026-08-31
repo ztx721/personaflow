@@ -169,6 +169,17 @@ class ConversationService:
         if plan.asset_tag and asset_tag is None:
             asset_tag = plan.asset_tag  # planner 主动动作（如 SEND_PHOTO）
 
+        # 会话驱动的素材：仅在用户显式请求看图 + 剧情未占位素材时，
+        # 由 AssetService 在 trusted catalog 内解析；找不到相关素材则不发图。
+        if asset_tag is None and plan.asset_request is not None and plan.asset_request.requested:
+            best = self.assets.find_best(
+                role_id=conv.role_id,
+                requested_tags=plan.asset_request.tags,
+                current_topic=state.current_topic,
+            )
+            if best is not None:
+                asset_tag = best.id
+
         for cand in plan.memory_candidates[:3]:
             self.db.add(
                 MemoryFact(

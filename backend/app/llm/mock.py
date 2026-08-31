@@ -8,6 +8,7 @@
 """
 
 from ..schemas import (
+    AssetRequest,
     Emotion,
     EmotionProposal,
     GeneratorContext,
@@ -24,9 +25,28 @@ NEGATIVE = ["难过", "伤心", "烦", "气", "讨厌", "累"]
 TOPICS = [
     ("weekend", ["周末", "放假", "假期"]),
     ("travel", ["旅行", "旅游", "海边", "海"]),
-    ("books", ["书", "书店"]),
+    ("books", ["书", "书店", "宋代", "历史", "小说", "文学"]),
     ("photos", ["照片", "拍"]),
+    ("coffee", ["咖啡", "拿铁", "手冲"]),
+    ("cat", ["猫", "小猫"]),
+    ("food", ["吃", "菜", "美食", "做饭"]),
 ]
+
+# 显式看图请求：只有命中才算，单纯提到照片/讨论外观不算（不会触发发图）。
+EXPLICIT_IMAGE_PHRASES = [
+    "给我看看", "让我看看", "发我看看", "给我看图", "图给我",
+    "有图片吗", "有照片吗", "看看照片", "看看图片", "长什么样",
+]
+
+# 话题 -> 提议的语义 tags（AssetService 再按 trusted catalog 匹配，只作提议）。
+TOPIC_ASSET_TAGS = {
+    "books": ["book", "history", "literature", "song_dynasty"],
+    "travel": ["travel", "beach", "seaside"],
+    "coffee": ["coffee"],
+    "cat": ["cat"],
+    "food": ["food", "meal"],
+    "photos": [],
+}
 
 
 class MockLLMClient(LLMClient):
@@ -39,6 +59,7 @@ class MockLLMClient(LLMClient):
             relationship_delta={axis: 1 for axis in ctx.state.relationship},
             topic_proposal=self._detect_topic(text),
             story_proposal=proposal,
+            asset_request=self._detect_asset_request(ctx),
             memory_candidates=[],
         )
 
@@ -72,6 +93,25 @@ class MockLLMClient(LLMClient):
             if any(kw and kw in ctx.user_message for kw in t.when):
                 return StoryProposal(next_node_id=t.to, reason=t.reason)
         return None
+
+    def _detect_asset_request(self, ctx: PlannerContext) -> AssetRequest:
+        """只对显式看图请求提议素材；单纯提到照片 / 讨论外观不算。"""
+        text = ctx.user_message
+        if not any(p in text for p in EXPLICIT_IMAGE_PHRASES):
+            return AssetRequest(requested=False, tags=[])
+        tags = self._asset_tags(text, ctx.state.current_topic)
+        return AssetRequest(requested=True, tags=tags)
+
+    def _asset_tags(self, text: str, current_topic: str | None) -> list[str]:
+        """确定性地为请求选择语义 tags（作为提议，最终由 AssetService 在 catalog 内解析）。"""
+        if any(w in text for w in ["书店", "店里", "门面", "书架"]):
+            return ["bookstore"]
+        # 话题优先取本条消息内的；纯请求句（如"给我看看"）回落到当前话题。
+        topic = self._detect_topic(text)
+        tags = TOPIC_ASSET_TAGS.get(topic, []) if topic else []
+        if not tags and current_topic:
+            tags = TOPIC_ASSET_TAGS.get(current_topic, [])
+        return tags
 
     def _intent(self, ctx: PlannerContext, proposal: StoryProposal | None) -> str:
         if proposal is not None:

@@ -28,6 +28,7 @@ _PLANNER_EXAMPLE = {
     "asset_tag": None,
     "story_proposal": None,
     "memory_candidates": [],
+    "asset_request": {"requested": False, "tags": []},
 }
 
 
@@ -116,9 +117,11 @@ class DeepSeekLLMClient(LLMClient):
                 "(object whose values are integers from -2 to 2), topic_proposal "
                 "(string or null), "
                 "asset_tag (always null), story_proposal (null or object with "
-                "string next_node_id and string-or-null reason), and memory_candidates "
+                "string next_node_id and string-or-null reason), memory_candidates "
                 "(array of objects with text, fact_type chosen from user_fact or "
-                "character_fact, and integer importance from 1 to 5).",
+                "character_fact, and integer importance from 1 to 5), and "
+                "asset_request (object with boolean requested and an array of "
+                "semantic string tags, as described in the contract).",
                 f"Valid JSON example: {example}",
             ]
         )

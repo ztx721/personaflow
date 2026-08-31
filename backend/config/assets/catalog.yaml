@@ -1,5 +1,78 @@
-# 素材 catalog：asset_tag -> 静态资源 URL。LLM 只回 tag，URL 由此处解析（原则 #7）。
-# 周六 Web/图片工作接入真实静态资源，替换这里的路径即可。
-storefront: /static/assets/storefront.svg
-bay_scene: /static/assets/bay_scene.svg
-beach_photo: /static/assets/beach_photo.svg
+# 素材 catalog（可信静态资源）：asset id -> 语义元数据。
+# LLM 只提议语义 tags，绝不返回 URL/路径；AssetService 在本 catalog 内解析（原则 #7）。
+# story_locked: true 的素材只能由剧情 transition.emit_asset 发出（如 beach_photo 必须
+# 等剧情推进到 photo_sent 才发送），会话驱动的素材选择会跳过它们，防止提前发图。
+storefront:
+  role_id: miko_cafe
+  url: /static/assets/storefront.svg
+  type: image
+  tags: [bookstore, storefront, 书店, 门口, 门面]
+  description: 林小满旧书店的门面
+  topics: [books, bookstore]
+  story_locked: true  # 开场场景素材：由剧情 greeting 入场发出，会话驱动不可复用
+
+bookstore_inside:
+  role_id: miko_cafe
+  url: /static/assets/bookstore_inside.svg
+  type: image
+  tags: [bookstore, shelves, inside, 书架, 书店, 店里]
+  description: 旧书店里暖黄的灯光与满墙书架
+  topics: [books, bookstore]
+
+history_book:
+  role_id: miko_cafe
+  url: /static/assets/history_book.svg
+  type: image
+  tags: [book, history, song_dynasty, 宋代, 历史书, 旧书]
+  description: 一本与宋代历史相关的旧书
+  topics: [books, history]
+
+literature_book:
+  role_id: miko_cafe
+  url: /static/assets/literature_book.svg
+  type: image
+  tags: [book, literature, novel, 文学, 小说, 散文]
+  description: 一本泛黄的文学小说
+  topics: [books, literature]
+
+coffee:
+  role_id: miko_cafe
+  url: /static/assets/coffee.svg
+  type: image
+  tags: [coffee, drink, 咖啡, 拿铁, 手冲]
+  description: 柜台上冒着热气的咖啡
+  topics: [coffee]
+
+cat:
+  role_id: miko_cafe
+  url: /static/assets/cat.svg
+  type: image
+  tags: [cat, pet, 猫, 小猫, 书店猫]
+  description: 蜷在书堆上打盹的橘猫
+  topics: [cat]
+
+food:
+  role_id: miko_cafe
+  url: /static/assets/food.svg
+  type: image
+  tags: [food, meal, dish, 菜, 美食, 番茄炒蛋]
+  description: 一盘简单可口的家常菜
+  topics: [food]
+
+bay_scene:
+  role_id: miko_cafe
+  url: /static/assets/bay_scene.svg
+  type: image
+  tags: [bay, seaside, scene, 海湾, 海边, 傍晚]
+  description: 傍晚安静的海湾与远山
+  topics: [travel, seaside]
+  story_locked: true  # 旅行主题由剧情释放，会话驱动不提前发海湾场景
+
+beach_photo:
+  role_id: miko_cafe
+  url: /static/assets/beach_photo.svg
+  type: image
+  tags: [travel, beach, seaside, 海边, 旅行, 照片]
+  description: 林小满在海边旅行时拍的拍立得照片
+  topics: [travel, seaside]
+  story_locked: true  # 只有 travel_photo 剧情推进到 photo_sent 时才能发出

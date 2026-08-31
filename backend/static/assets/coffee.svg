@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-labelledby="title desc">
+  <title id="title">柜台上的一杯咖啡</title><desc id="desc">冒着热气的咖啡杯与托盘</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#6d5a4e"/><stop offset="1" stop-color="#4a382e"/></linearGradient></defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <rect x="120" y="420" width="560" height="40" rx="8" fill="#3c2d24"/>
+  <ellipse cx="400" cy="360" rx="220" ry="18" fill="#2e211a"/>
+  <path d="M260 300h280l-16 150c-4 34-26 54-60 54h-128c-34 0-56-20-60-54Z" fill="#f6f3ec"/>
+  <path d="M258 300l-8-34c-4-16 6-30 22-30h256c16 0 26 14 22 30l-8 34" fill="#efe9dd"/>
+  <rect x="300" y="182" width="200" height="16" rx="8" fill="#efe9dd"/>
+  <path d="M322 168c-6-12 6-18 0-28M358 166c-6-12 6-18 0-28M394 168c-6-12 6-18 0-28M430 166c-6-12 6-18 0-28" fill="none" stroke="#e9d9c0" stroke-width="10" stroke-linecap="round" opacity=".9"/>
+  <ellipse cx="400" cy="322" rx="112" ry="14" fill="#5b4632"/>
+  <ellipse cx="400" cy="320" rx="94" ry="10" fill="#8a5b2e"/>
+  <ellipse cx="400" cy="318" rx="64" ry="7" fill="#b47932"/>
+</svg>

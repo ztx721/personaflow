@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 900" role="img" aria-labelledby="title desc">
+  <title id="title">宋代历史旧书</title><desc id="desc">一本封面素净的宋代历史旧书</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#d8c9b0"/><stop offset="1" stop-color="#a89374"/></linearGradient></defs>
+  <rect width="800" height="900" fill="url(#bg)"/>
+  <rect x="130" y="120" width="540" height="660" rx="10" fill="#5b4636" stroke="#38291d" stroke-width="14"/>
+  <rect x="160" y="150" width="480" height="600" rx="4" fill="#f0e3c8"/>
+  <g fill="#7a6040"><rect x="180" y="190" width="440" height="8"/><rect x="180" y="214" width="440" height="8"/><rect x="180" y="238" width="440" height="8"/><rect x="180" y="262" width="380" height="8"/><rect x="180" y="286" width="440" height="8"/><rect x="180" y="310" width="300" height="8"/><rect x="180" y="334" width="440" height="8"/><rect x="180" y="358" width="420" height="8"/></g>
+  <text x="400" y="620" text-anchor="middle" font-size="40" fill="#51372d" font-family="serif">资治通鉴 · 宋纪</text>
+  <rect x="0" y="820" width="800" height="80" fill="#2c1d16"/>
+</svg>

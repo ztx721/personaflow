@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 900" role="img" aria-labelledby="title desc">
+  <title id="title">泛黄的文学小说</title><desc id="desc">一本边角卷起的泛黄小说</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#cfc0a8"/><stop offset="1" stop-color="#9d8b6f"/></linearGradient></defs>
+  <rect width="800" height="900" fill="url(#bg)"/>
+  <rect x="150" y="130" width="520" height="640" rx="8" fill="#4e4b55" stroke="#2b2833" stroke-width="14"/>
+  <rect x="180" y="160" width="460" height="580" rx="4" fill="#f4e8d2"/>
+  <g fill="#6f5b3e"><rect x="204" y="200" width="412" height="7"/><rect x="204" y="222" width="412" height="7"/><rect x="204" y="244" width="412" height="7"/><rect x="204" y="266" width="330" height="7"/><rect x="204" y="288" width="412" height="7"/><rect x="204" y="310" width="360" height="7"/></g>
+  <g transform="translate(400 452) rotate(-6)"><ellipse cx="0" cy="0" rx="150" ry="196" fill="#c98b56"/><text x="0" y="8" text-anchor="middle" font-size="34" fill="#5a3b28" font-family="serif">山月记</text></g>
+  <rect x="0" y="820" width="800" height="80" fill="#26232c"/>
+</svg>

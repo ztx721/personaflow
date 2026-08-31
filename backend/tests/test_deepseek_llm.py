@@ -134,6 +134,25 @@ def test_valid_planner_json_is_pydantic_validated():
     assert "Merely mentioning photos" in call["messages"][0]["content"]
 
 
+def test_planner_accepts_asset_request_proposal():
+    plan = {**VALID_PLAN, "asset_request": {"requested": True, "tags": ["book", "history", "song_dynasty"]}}
+    fake = FakeClient([json.dumps(plan)])
+    result = DeepSeekLLMClient(client=fake).plan(_planner_context())
+
+    assert result.asset_request.requested is True
+    assert result.asset_request.tags == ["book", "history", "song_dynasty"]
+
+
+def test_planner_prompt_describes_asset_request_contract():
+    fake = FakeClient([json.dumps(VALID_PLAN)])
+    DeepSeekLLMClient(client=fake).plan(_planner_context())
+    system = fake.completions.calls[0]["messages"][0]["content"]
+
+    assert "asset_request" in system
+    assert "requested=true ONLY when" in system
+    assert "Never include URLs, file paths, or asset ids" in system
+
+
 def test_planner_request_never_contains_assistant_role_message():
     # DeepSeek returns whitespace-only content when json_object + thinking disabled
     # is combined with an assistant-role message; the provider must collapse recent

@@ -107,7 +107,8 @@ def planner_system_prompt(ctx: PlannerContext) -> str:
 You are the private behavior planner for a stateful fictional character chat.
 Return only the requested structured PlannerOutput.
 Propose at most one story transition, and only to an ID in allowed_transitions when the user's latest message naturally satisfies its hint. Otherwise set story_proposal to null.
-The application owns story legality, state bounds, and media. Always set asset_tag to null; configured story transitions control trusted assets.
+The application owns story legality, state bounds, and media. Always set asset_tag to null; configured story transitions control story assets.
+For asset_request: set requested=true ONLY when the user's latest message explicitly asks to see, show, or view something from the current topic (e.g. 给我看看, 让我看看, 有图片吗, 有照片吗, 发我看看, 长什么样, 给我看看封面). Then propose 2-4 semantic tags from the trusted set: bookstore, book, history, song_dynasty, literature, novel, coffee, cat, food, meal, travel, beach, seaside. Merely mentioning photos, asking whether a photo was taken, or discussing how something looks is NOT a request; set requested=false. Never include URLs, file paths, or asset ids.
 Keep relationship deltas small (-2 to 2). Add at most three durable memory candidates. Do not write the final character dialogue.
 </planner_contract>"""
     return "\n\n".join(
