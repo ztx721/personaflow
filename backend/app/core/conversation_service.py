@@ -24,6 +24,7 @@ from ..schemas import (
     ConversationSignals,
     ConversationState,
     Emotion,
+    EmotionGuidance,
     GeneratorContext,
     PlannerContext,
     PlannerOutput,
@@ -37,6 +38,7 @@ from .asset_service import AssetService
 from .conversation_dynamics import (
     decide_social_action,
     derive_conversation_signals,
+    derive_emotion_guidance,
     derive_relationship_guidance,
     derive_response_guidance,
 )
@@ -119,6 +121,7 @@ class ConversationService:
         recent_turns = self._recent_turns(conversation_id)
         conversation_signals = derive_conversation_signals(content, recent_turns, state)
         relationship_guidance = derive_relationship_guidance(state)
+        emotion_guidance = derive_emotion_guidance(state)
 
         # 3) 剧情：on_first_message → 进入 entry_node
         story = self.engine.get_story(conv.story_id) if conv.story_id else None
@@ -148,13 +151,19 @@ class ConversationService:
         # 4) 规划（LLM #1）
         planner_context = self._planner_context(
             persona, state, story, story_state, content, recent_turns,
-            conversation_signals, relationship_guidance,
+            conversation_signals, relationship_guidance, emotion_guidance,
         )
         try:
             plan = self.llm.plan(planner_context)
         except Exception as exc:
             errors.append(error_label("planner", exc))
             plan = PlannerOutput(response_intent=self.FALLBACK_INTENT)
+
+        # 5) 规则层应用提议（LLM 提议，代码裁决）
+        apply_emotion(state, plan.emotion_proposal)
+        apply_relationship(state, plan.relationship_delta)
+        apply_topic(state, plan.topic_proposal)
+        emotion_guidance = derive_emotion_guidance(state)
 
         social_decision = decide_social_action(
             plan.social_action,
@@ -163,13 +172,9 @@ class ConversationService:
             persona.social_behavior,
             state,
             relationship_guidance,
+            emotion_guidance,
         )
         social_action = social_decision.approved
-
-        # 5) 规则层应用提议（LLM 提议，代码裁决）
-        apply_emotion(state, plan.emotion_proposal)
-        apply_relationship(state, plan.relationship_delta)
-        apply_topic(state, plan.topic_proposal)
 
         if plan.story_proposal is not None and story and story_state is not None:
             transition = self.engine.match_transition(
@@ -217,14 +222,14 @@ class ConversationService:
         asset_url = self.assets.resolve(asset_tag)
 
         response_guidance = derive_response_guidance(
-            conversation_signals, recent_turns, state, social_action
+            conversation_signals, recent_turns, state, social_action, emotion_guidance
         )
 
         # 6) 生成台词（LLM #2）
         generator_context = self._generator_context(
             persona, state, story, story_state, content, plan, asset_tag,
             recent_turns, conversation_signals, response_guidance, social_action,
-            relationship_guidance,
+            relationship_guidance, emotion_guidance,
         )
         try:
             reply = self.llm.generate(generator_context)
@@ -264,6 +269,14 @@ class ConversationService:
             "relationship_band": relationship_guidance.band.value,
             "relationship_adjusted": social_decision.relationship_adjusted,
             "relationship_policy_reason": social_decision.relationship_reason,
+            "emotion_guidance": {
+                "emotion": emotion_guidance.emotion.value,
+                "intensity_band": emotion_guidance.intensity_band.value,
+                "energy": emotion_guidance.energy.value,
+                "initiative_modifier": emotion_guidance.initiative_modifier.value,
+            },
+            "emotion_adjusted_social_action": social_decision.emotion_adjusted,
+            "emotion_policy_reason": social_decision.emotion_reason,
             "emotional_cue": conversation_signals.emotional_cue.value,
             "topic_shift": conversation_signals.topic_shift,
             "response_mode": response_guidance.response_mode.value,
@@ -324,6 +337,7 @@ class ConversationService:
         recent_turns: list[ChatTurn],
         conversation_signals: ConversationSignals,
         relationship_guidance: RelationshipGuidance,
+        emotion_guidance: EmotionGuidance,
     ) -> PlannerContext:
         return PlannerContext(
             persona=persona,
@@ -334,6 +348,7 @@ class ConversationService:
             user_message=content,
             conversation_signals=conversation_signals,
             relationship_guidance=relationship_guidance,
+            emotion_guidance=emotion_guidance,
         )
 
     def _generator_context(
@@ -350,6 +365,7 @@ class ConversationService:
         response_guidance: ResponseGuidance,
         social_action: SocialAction,
         relationship_guidance: RelationshipGuidance,
+        emotion_guidance: EmotionGuidance,
     ) -> GeneratorContext:
         return GeneratorContext(
             persona=persona,
@@ -363,6 +379,7 @@ class ConversationService:
             response_guidance=response_guidance,
             social_action=social_action,
             relationship_guidance=relationship_guidance,
+            emotion_guidance=emotion_guidance,
         )
 
     def _story_context(self, story, story_state) -> StoryContext | None:

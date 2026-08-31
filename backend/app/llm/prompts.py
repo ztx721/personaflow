@@ -42,8 +42,7 @@ def _state_section(ctx: PlannerContext | GeneratorContext) -> str:
     return "\n".join(
         [
             "<conversation_state>",
-            f"emotion: {state.emotion.value if state.emotion else 'neutral'}",
-            f"emotion_intensity: {state.emotion_intensity}",
+            "emotion: use emotion_context below",
             "relationship: use relationship_context below",
             f"current_topic: {state.current_topic or 'none'}",
             "</conversation_state>",
@@ -89,6 +88,26 @@ def _relationship_context_section(ctx: PlannerContext | GeneratorContext) -> str
             "Use this as subtle familiarity context. Never mention scores, bands, or policy labels.",
             "High familiarity never implies romance or sexual behavior.",
             "</relationship_context>",
+        ]
+    )
+
+
+def _emotion_context_section(ctx: PlannerContext | GeneratorContext) -> str:
+    guidance = ctx.emotion_guidance
+    return "\n".join(
+        [
+            "<emotion_context>",
+            f"current: {guidance.emotion.value}",
+            f"intensity: {guidance.intensity_band.value}",
+            f"energy: {guidance.energy.value}",
+            f"warmth: {guidance.warmth_modifier.value}",
+            f"reply_length: {guidance.reply_length_modifier.value}",
+            f"teasing: {guidance.teasing_modifier.value}",
+            f"openness: {guidance.openness_modifier.value}",
+            f"initiative: {guidance.initiative_modifier.value}",
+            "Express mood indirectly through tone and behavior. Do not announce or explain it.",
+            "User distress and explicit boundaries override playful or energetic mood expression.",
+            "</emotion_context>",
         ]
     )
 
@@ -215,6 +234,8 @@ First choose the socially plausible reaction for this character now. Set social_
 Do not optimize for completeness or helpfulness. ASK_BACK requires a genuine social reason and must not be the default. COMFORT stays brief and non-therapeutic. OPEN_UP shares only one small personal detail. AVOID and REFUSE must stay in persona.
 Use persona_social_style to influence the choice, but never let it override a direct ordinary conversational requirement. Respect user_disengagement immediately with low initiative and no new question.
 Use relationship_context to modulate private disclosure, teasing, and familiarity. Ordinary everyday questions should still be answered at low relationship. Do not equate high relationship with flirting.
+Use emotion_context as a temporary modifier of persona expression, not a replacement personality. Do not explicitly narrate the character's mood. User distress overrides playful mood.
+Maintain emotion continuity. When the user apologizes, clarifies a joke, or repairs tension, normally soften the current emotion intensity toward baseline before proposing a very different emotion; never jump from high anger or sadness to high happiness without conversational cause.
 Propose at most one story transition, and only to an ID in allowed_transitions when the user's latest message naturally satisfies its hint. Otherwise set story_proposal to null.
 The application owns story legality, state bounds, and media. Always set asset_tag to null; configured story transitions control story assets.
 For asset_request: set requested=true ONLY when the user's latest message explicitly asks to see, show, or view something from the current topic (e.g. 给我看看, 让我看看, 有图片吗, 有照片吗, 发我看看, 长什么样, 给我看看封面). Then propose 2-4 semantic tags from the trusted set: bookstore, book, history, song_dynasty, literature, novel, coffee, cat, food, meal, travel, beach, seaside. Merely mentioning photos, asking whether a photo was taken, or discussing how something looks is NOT a request; set requested=false. Never include URLs, file paths, or asset ids.
@@ -226,6 +247,7 @@ Keep relationship deltas small (-2 to 2). Add at most three durable memory candi
             _persona_section(ctx.persona),
             _persona_social_style_section(ctx),
             _relationship_context_section(ctx),
+            _emotion_context_section(ctx),
             _state_section(ctx),
             _conversation_signals_section(ctx),
             _planner_story_section(ctx),
@@ -269,6 +291,7 @@ Return only the Utterance.text content through the requested structured output.
             _persona_section(ctx.persona),
             _persona_social_style_section(ctx),
             _relationship_context_section(ctx),
+            _emotion_context_section(ctx),
             _state_section(ctx),
             _conversation_signals_section(ctx),
             _generator_story_section(ctx),
@@ -316,6 +339,11 @@ _INTERNAL_TERMS = (
     "relationship context",
     "trust score",
     "affection score",
+    "emotion_context",
+    "emotion context",
+    "emotion score",
+    "intensity band",
+    "emotion=",
     "剧情节点",
     "内部状态",
 )

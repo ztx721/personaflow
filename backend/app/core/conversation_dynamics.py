@@ -12,6 +12,10 @@ from ..schemas import (
     ConversationalPressure,
     ConversationalWarmth,
     DisclosurePermission,
+    Emotion,
+    EmotionGuidance,
+    EmotionIntensityBand,
+    EmotionModifier,
     EmotionalCue,
     FollowupPreference,
     PersonaSocialPolicy,
@@ -19,6 +23,7 @@ from ..schemas import (
     ResponseMode,
     RelationshipBand,
     RelationshipGuidance,
+    ReplyLengthModifier,
     SocialAction,
     SocialActionDecision,
     SocialTraitLevel,
@@ -65,6 +70,8 @@ _PERSONAL_QUESTION_MARKERS = (
 
 RELATIONSHIP_MEDIUM_THRESHOLD = 35
 RELATIONSHIP_HIGH_THRESHOLD = 70
+EMOTION_MEDIUM_THRESHOLD = 35
+EMOTION_HIGH_THRESHOLD = 70
 
 
 def derive_relationship_guidance(state: ConversationState) -> RelationshipGuidance:
@@ -91,6 +98,46 @@ def derive_relationship_guidance(state: ConversationState) -> RelationshipGuidan
             personal_question_tolerance=RelationshipBand.medium,
         )
     return RelationshipGuidance()
+
+
+def derive_emotion_guidance(state: ConversationState) -> EmotionGuidance:
+    """Translate the persisted mood into compact, non-persisted behavior guidance."""
+    emotion = state.emotion or Emotion.neutral
+    intensity = state.emotion_intensity
+    if intensity >= EMOTION_HIGH_THRESHOLD:
+        band = EmotionIntensityBand.high
+    elif intensity >= EMOTION_MEDIUM_THRESHOLD:
+        band = EmotionIntensityBand.medium
+    else:
+        band = EmotionIntensityBand.low
+
+    guidance = EmotionGuidance(emotion=emotion, intensity_band=band)
+    if band is EmotionIntensityBand.low:
+        return guidance
+    if emotion in {Emotion.happy, Emotion.excited, Emotion.grateful}:
+        guidance.energy = EmotionModifier.elevated
+        guidance.warmth_modifier = EmotionModifier.elevated
+        guidance.teasing_modifier = EmotionModifier.elevated
+        guidance.initiative_modifier = EmotionModifier.elevated
+    elif emotion in {Emotion.sad, Emotion.worried}:
+        guidance.energy = EmotionModifier.restrained
+        guidance.reply_length_modifier = ReplyLengthModifier.shorter
+        guidance.teasing_modifier = EmotionModifier.restrained
+        guidance.openness_modifier = EmotionModifier.restrained
+        guidance.initiative_modifier = EmotionModifier.restrained
+    elif emotion in {Emotion.shy, Emotion.embarrassed}:
+        guidance.energy = EmotionModifier.restrained
+        guidance.reply_length_modifier = ReplyLengthModifier.shorter
+        guidance.teasing_modifier = EmotionModifier.restrained
+        guidance.openness_modifier = EmotionModifier.restrained
+        guidance.initiative_modifier = EmotionModifier.restrained
+    elif emotion is Emotion.angry:
+        guidance.warmth_modifier = EmotionModifier.restrained
+        guidance.reply_length_modifier = ReplyLengthModifier.shorter
+        guidance.teasing_modifier = EmotionModifier.restrained
+        guidance.openness_modifier = EmotionModifier.restrained
+        guidance.initiative_modifier = EmotionModifier.restrained
+    return guidance
 
 
 def derive_conversation_signals(
@@ -160,9 +207,9 @@ def derive_response_guidance(
     recent_messages: list[ChatTurn],
     state: ConversationState,
     social_action: SocialAction = SocialAction.reply,
+    emotion_guidance: EmotionGuidance | None = None,
 ) -> ResponseGuidance:
     """Turn signals become compact approved generator guidance."""
-    del state
     anchor = _latest_character_message(recent_messages) if signals.asks_for_clarification else None
     recent_question = _latest_character_asked_question(recent_messages)
 
@@ -207,6 +254,15 @@ def derive_response_guidance(
         or signals.repetition_risk
     )
 
+    emotion_context = emotion_guidance or derive_emotion_guidance(state)
+    if emotion_context.reply_length_modifier is ReplyLengthModifier.shorter:
+        if length is TargetLength.normal:
+            length = TargetLength.short
+        elif length is TargetLength.short and emotion_context.intensity_band is EmotionIntensityBand.high:
+            length = TargetLength.very_short
+    if emotion_context.initiative_modifier is EmotionModifier.restrained:
+        may_ask = False
+
     return ResponseGuidance(
         response_mode=mode,
         target_length=length,
@@ -240,12 +296,14 @@ def decide_social_action(
     persona_policy: PersonaSocialPolicy | None = None,
     state: ConversationState | None = None,
     relationship_guidance: RelationshipGuidance | None = None,
+    emotion_guidance: EmotionGuidance | None = None,
 ) -> SocialActionDecision:
     """Apply only small, deterministic compatibility checks to an LLM proposal."""
     policy = persona_policy or PersonaSocialPolicy()
     approved = action
     reason = None
     relationship_reason = None
+    emotion_reason = None
     relationship = relationship_guidance or RelationshipGuidance(
         band=RelationshipBand.medium,
         disclosure_permission=DisclosurePermission.moderate,
@@ -254,12 +312,26 @@ def decide_social_action(
         shorthand_preference=True,
         personal_question_tolerance=RelationshipBand.medium,
     )
+    emotion_context = emotion_guidance or EmotionGuidance()
 
     if signals.user_disengagement:
         if action not in {SocialAction.acknowledge, SocialAction.short_reply, SocialAction.avoid}:
             approved, reason = SocialAction.acknowledge, "explicit_user_boundary"
     elif action is SocialAction.tease and signals.emotional_cue is EmotionalCue.negative:
         approved, reason = SocialAction.comfort, "teasing_suppressed_for_distress"
+    elif (
+        action is SocialAction.tease
+        and emotion_context.teasing_modifier is EmotionModifier.restrained
+    ):
+        approved = SocialAction.reply
+        emotion_reason = "teasing_suppressed_low_mood"
+    elif (
+        action in {SocialAction.reply, SocialAction.ask_back}
+        and emotion_context.emotion is Emotion.angry
+        and emotion_context.intensity_band is EmotionIntensityBand.high
+    ):
+        approved = SocialAction.short_reply
+        emotion_reason = "reply_shortened_annoyed"
     elif (
         action is SocialAction.tease
         and policy.teasing in {SocialTraitLevel.low, SocialTraitLevel.medium_low}
@@ -299,6 +371,8 @@ def decide_social_action(
         reason=reason,
         relationship_adjusted=relationship_reason is not None,
         relationship_reason=relationship_reason,
+        emotion_adjusted=emotion_reason is not None,
+        emotion_reason=emotion_reason,
     )
 
 

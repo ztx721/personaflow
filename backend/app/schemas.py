@@ -282,6 +282,8 @@ class SocialActionDecision(BaseModel):
     reason: str | None = None
     relationship_adjusted: bool = False
     relationship_reason: str | None = None
+    emotion_adjusted: bool = False
+    emotion_reason: str | None = None
 
 
 class RelationshipBand(str, Enum):
@@ -315,6 +317,34 @@ class RelationshipGuidance(BaseModel):
     conversational_warmth: ConversationalWarmth = ConversationalWarmth.reserved
     shorthand_preference: bool = False
     personal_question_tolerance: RelationshipBand = RelationshipBand.low
+
+
+class EmotionIntensityBand(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
+class EmotionModifier(str, Enum):
+    restrained = "restrained"
+    baseline = "baseline"
+    elevated = "elevated"
+
+
+class ReplyLengthModifier(str, Enum):
+    shorter = "shorter"
+    baseline = "baseline"
+
+
+class EmotionGuidance(BaseModel):
+    emotion: Emotion = Emotion.neutral
+    intensity_band: EmotionIntensityBand = EmotionIntensityBand.medium
+    energy: EmotionModifier = EmotionModifier.baseline
+    warmth_modifier: EmotionModifier = EmotionModifier.baseline
+    reply_length_modifier: ReplyLengthModifier = ReplyLengthModifier.baseline
+    teasing_modifier: EmotionModifier = EmotionModifier.baseline
+    openness_modifier: EmotionModifier = EmotionModifier.baseline
+    initiative_modifier: EmotionModifier = EmotionModifier.baseline
 
 
 class ChatTurn(BaseModel):
@@ -353,6 +383,7 @@ class PlannerContext(BaseModel):
     user_message: str
     conversation_signals: ConversationSignals = Field(default_factory=ConversationSignals)
     relationship_guidance: RelationshipGuidance = Field(default_factory=RelationshipGuidance)
+    emotion_guidance: EmotionGuidance = Field(default_factory=EmotionGuidance)
 
 
 class GeneratorContext(BaseModel):
@@ -367,6 +398,7 @@ class GeneratorContext(BaseModel):
     response_guidance: ResponseGuidance = Field(default_factory=ResponseGuidance)
     social_action: SocialAction = SocialAction.reply
     relationship_guidance: RelationshipGuidance = Field(default_factory=RelationshipGuidance)
+    emotion_guidance: EmotionGuidance = Field(default_factory=EmotionGuidance)
 
 
 # ---------------------------------------------------------------------------
