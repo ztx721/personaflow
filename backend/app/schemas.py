@@ -61,6 +61,51 @@ class SocialAction(str, Enum):
     refuse = "refuse"
 
 
+class PhotoAction(str, Enum):
+    none = "none"
+    offer = "offer"
+    send = "send"
+    delay = "delay"
+    refuse = "refuse"
+
+
+class PhotoCategory(str, Enum):
+    public_object = "public_object"
+    book = "book"
+    bookstore = "bookstore"
+    coffee = "coffee"
+    cat = "cat"
+    food = "food"
+    travel = "travel"
+    personal = "personal"
+    selfie = "selfie"
+    other = "other"
+
+
+class PhotoCategoryPolicy(BaseModel):
+    min_relationship: Literal["low", "medium", "high"] = "medium"
+    default_action: PhotoAction = PhotoAction.delay
+
+
+class PersonaPhotoPolicy(BaseModel):
+    willingness: Literal["guarded", "moderate", "open"] = "guarded"
+    categories: dict[PhotoCategory, PhotoCategoryPolicy] = Field(default_factory=dict)
+    stranger_request: PhotoAction = PhotoAction.delay
+    familiar_request: PhotoAction = PhotoAction.delay
+    close_request: PhotoAction = PhotoAction.send
+    story_offer_action: PhotoAction = PhotoAction.send
+
+
+class PhotoPolicyDecision(BaseModel):
+    proposed: PhotoAction = PhotoAction.none
+    approved: PhotoAction = PhotoAction.none
+    category: PhotoCategory = PhotoCategory.other
+    adjusted: bool = False
+    reason: str = "no_photo_request"
+    asset_candidate: str | None = None
+    asset_sent: bool = False
+
+
 class SocialTraitLevel(str, Enum):
     low = "low"
     medium_low = "medium_low"
@@ -94,6 +139,7 @@ class PersonaConfig(BaseModel):
     emotion: EmotionInit = Field(default_factory=EmotionInit)
     relationship: RelationshipInit = Field(default_factory=RelationshipInit)
     social_behavior: PersonaSocialPolicy = Field(default_factory=PersonaSocialPolicy)
+    photo_policy: PersonaPhotoPolicy = Field(default_factory=PersonaPhotoPolicy)
     default_story: str | None = None
 
 
@@ -261,6 +307,8 @@ class PlannerOutput(BaseModel):
     thread_updates: list[ThreadUpdate] = Field(default_factory=list)
     resume_thread_id: str | None = None
     story_pressure: StoryPressure = StoryPressure.none
+    photo_action: PhotoAction = PhotoAction.none
+    photo_category: PhotoCategory = PhotoCategory.other
 
 
 class Utterance(BaseModel):
@@ -469,6 +517,10 @@ class GeneratorContext(BaseModel):
     open_threads: list[OpenThread] = Field(default_factory=list)
     resumed_thread: OpenThread | None = None
     story_opportunity: StoryOpportunity = Field(default_factory=StoryOpportunity)
+    photo_action: PhotoAction = PhotoAction.none
+    photo_category: PhotoCategory = PhotoCategory.other
+    asset_attached: bool = False
+    story_photo_available: bool = False
 
 
 # ---------------------------------------------------------------------------

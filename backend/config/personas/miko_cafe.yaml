@@ -69,4 +69,22 @@ social_behavior:
     - repeated follow-up questions
     - long explanatory answers
 
+photo_policy:
+  willingness: guarded
+  categories:
+    public_object: {min_relationship: low, default_action: send}
+    book: {min_relationship: low, default_action: send}
+    bookstore: {min_relationship: low, default_action: send}
+    coffee: {min_relationship: low, default_action: send}
+    cat: {min_relationship: low, default_action: send}
+    food: {min_relationship: low, default_action: send}
+    travel: {min_relationship: medium, default_action: send}
+    personal: {min_relationship: high, default_action: send}
+    selfie: {min_relationship: high, default_action: send}
+    other: {min_relationship: medium, default_action: delay}
+  stranger_request: delay
+  familiar_request: delay
+  close_request: send
+  story_offer_action: send
+
 default_story: travel_photo

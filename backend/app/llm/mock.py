@@ -14,6 +14,8 @@ from ..schemas import (
     GeneratorContext,
     PlannerContext,
     PlannerOutput,
+    PhotoAction,
+    PhotoCategory,
     SocialAction,
     StoryProposal,
     StoryPressure,
@@ -71,6 +73,8 @@ class MockLLMClient(LLMClient):
             story_pressure=(
                 StoryPressure.opportunistic if proposal is not None else StoryPressure.none
             ),
+            photo_action=self._photo_action(ctx),
+            photo_category=self._photo_category(ctx),
         )
 
     @staticmethod
@@ -124,6 +128,27 @@ class MockLLMClient(LLMClient):
             return AssetRequest(requested=False, tags=[])
         tags = self._asset_tags(text, ctx.state.current_topic)
         return AssetRequest(requested=True, tags=tags)
+
+    def _photo_action(self, ctx: PlannerContext) -> PhotoAction:
+        return (
+            PhotoAction.send
+            if self._detect_asset_request(ctx).requested
+            else PhotoAction.none
+        )
+
+    def _photo_category(self, ctx: PlannerContext) -> PhotoCategory:
+        text = ctx.user_message
+        if any(word in text for word in ("自拍", "你自己的照片", "你的照片")):
+            return PhotoCategory.selfie
+        topic = self._detect_topic(text) or ctx.state.current_topic
+        return {
+            "books": PhotoCategory.book,
+            "coffee": PhotoCategory.coffee,
+            "cat": PhotoCategory.cat,
+            "food": PhotoCategory.food,
+            "travel": PhotoCategory.travel,
+            "photos": PhotoCategory.other,
+        }.get(topic, PhotoCategory.other)
 
     def _asset_tags(self, text: str, current_topic: str | None) -> list[str]:
         """确定性地为请求选择语义 tags（作为提议，最终由 AssetService 在 catalog 内解析）。"""

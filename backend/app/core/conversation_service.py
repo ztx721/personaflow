@@ -29,11 +29,15 @@ from ..schemas import (
     PlannerContext,
     PlannerOutput,
     PersonaConfig,
+    PhotoAction,
+    PhotoCategory,
+    PhotoPolicyDecision,
     ResponseGuidance,
     RelationshipGuidance,
     SocialAction,
     StoryContext,
     StoryOpportunity,
+    UserAct,
 )
 from .asset_service import AssetService
 from .conversation_dynamics import (
@@ -45,6 +49,7 @@ from .conversation_dynamics import (
 )
 from .rules import apply_emotion, apply_relationship, apply_topic, clamp
 from .open_threads import active_threads, apply_thread_updates
+from .photo_policy import normalize_photo_action
 from .story_engine import StoryEngine
 from .story_pressure import normalize_story_pressure
 
@@ -143,12 +148,14 @@ class ConversationService:
         errors: list[str] = []
         applied: dict = {}
         asset_tag: str | None = None
+        ambient_asset_tag: str | None = None
 
         if story and story_state is not None:
             if not story_state.current_node_id or story_state.status == "idle":
                 node, newly = self.engine.activate(story, story_state)
                 if newly:
                     asset_tag = self._apply_on_enter(story, node, conversation_id, asset_tag)
+                    ambient_asset_tag = asset_tag
                 applied["story_enter"] = {"node": story.entry_node}
 
         # 4) 规划（LLM #1）
@@ -211,8 +218,40 @@ class ConversationService:
             transition,
             bool(story_state is not None and story_state.status == "active"),
         )
+        explicit_photo_request = bool(
+            conversation_signals.latest_user_act is UserAct.image_request
+        )
+        photo_decision: PhotoPolicyDecision | None = None
+        story_photo_candidate = None
+        if (
+            transition is not None
+            and transition.emit_asset
+            and story_pressure.opportunity.eligible
+        ):
+            story_photo_candidate = self._asset_spec(transition.emit_asset)
+            photo_decision = normalize_photo_action(
+                plan.photo_action,
+                plan.photo_category,
+                explicit_photo_request,
+                content,
+                story_photo_candidate,
+                persona.photo_policy,
+                relationship_guidance,
+                emotion_guidance,
+                story_authorized=True,
+            )
+
+        transition_photo_allowed = (
+            transition is None
+            or not transition.emit_asset
+            or bool(photo_decision is not None and photo_decision.asset_sent)
+        )
         story_transition_applied = False
-        if transition is not None and story_pressure.opportunity.eligible:
+        if (
+            transition is not None
+            and story_pressure.opportunity.eligible
+            and transition_photo_allowed
+        ):
             prev = story_state.current_node_id
             node, newly = self.engine.apply_transition(story, story_state, transition)
             story_transition_applied = True
@@ -224,21 +263,43 @@ class ConversationService:
             if transition.emit_asset:
                 asset_tag = transition.emit_asset
             if newly:
+                before_on_enter = asset_tag
                 asset_tag = self._apply_on_enter(story, node, conversation_id, asset_tag)
+                if asset_tag != before_on_enter and not transition.emit_asset:
+                    ambient_asset_tag = asset_tag
 
-        if plan.asset_tag and asset_tag is None:
-            asset_tag = plan.asset_tag  # planner 主动动作（如 SEND_PHOTO）
+        # Legacy PlannerOutput.asset_tag is deliberately ignored. Only semantic
+        # tags enter trusted catalog selection; story assets require a legal edge.
 
         # 会话驱动的素材：仅在用户显式请求看图 + 剧情未占位素材时，
         # 由 AssetService 在 trusted catalog 内解析；找不到相关素材则不发图。
-        if asset_tag is None and plan.asset_request is not None and plan.asset_request.requested:
-            best = self.assets.find_best(
-                role_id=conv.role_id,
-                requested_tags=plan.asset_request.tags,
-                current_topic=state.current_topic,
+        if photo_decision is None:
+            contextual_candidate = None
+            if explicit_photo_request:
+                contextual_candidate = self.assets.find_best(
+                    role_id=conv.role_id,
+                    requested_tags=plan.asset_request.tags,
+                    current_topic=state.current_topic,
+                )
+            photo_decision = normalize_photo_action(
+                plan.photo_action,
+                plan.photo_category,
+                explicit_photo_request,
+                content,
+                contextual_candidate,
+                persona.photo_policy,
+                relationship_guidance,
+                emotion_guidance,
             )
-            if best is not None:
-                asset_tag = best.id
+            if photo_decision.asset_sent and contextual_candidate is not None:
+                asset_tag = contextual_candidate.id
+            elif explicit_photo_request:
+                asset_tag = None
+            elif ambient_asset_tag is not None:
+                asset_tag = ambient_asset_tag
+
+        if photo_decision.asset_sent and story_photo_candidate is not None:
+            asset_tag = story_photo_candidate.id
 
         for cand in plan.memory_candidates[:3]:
             self.db.add(
@@ -251,6 +312,7 @@ class ConversationService:
             )
 
         asset_url = self.assets.resolve(asset_tag)
+        story_photo_available = self._story_photo_available(story, story_state)
 
         response_guidance = derive_response_guidance(
             conversation_signals, recent_turns, state, social_action, emotion_guidance
@@ -262,6 +324,8 @@ class ConversationService:
             recent_turns, conversation_signals, response_guidance, social_action,
             relationship_guidance, emotion_guidance, thread_result.resumed,
             story_pressure.opportunity,
+            photo_decision.approved, photo_decision.category, bool(asset_url),
+            story_photo_available,
         )
         try:
             reply = self.llm.generate(generator_context)
@@ -334,6 +398,13 @@ class ConversationService:
                 story_state.current_node_id if story_state is not None else None
             ),
             "story_transition_applied": story_transition_applied,
+            "photo_action_proposed": photo_decision.proposed.value,
+            "photo_action_approved": photo_decision.approved.value,
+            "photo_category": photo_decision.category.value,
+            "photo_policy_adjusted": photo_decision.adjusted,
+            "photo_policy_reason": photo_decision.reason,
+            "asset_candidate": photo_decision.asset_candidate,
+            "asset_sent": photo_decision.asset_sent,
         }
         self.db.add(
             TurnLog(
@@ -418,6 +489,10 @@ class ConversationService:
         emotion_guidance: EmotionGuidance,
         resumed_thread,
         story_opportunity: StoryOpportunity,
+        photo_action: PhotoAction,
+        photo_category: PhotoCategory,
+        asset_attached: bool,
+        story_photo_available: bool,
     ) -> GeneratorContext:
         return GeneratorContext(
             persona=persona,
@@ -435,6 +510,10 @@ class ConversationService:
             open_threads=active_threads(state),
             resumed_thread=resumed_thread,
             story_opportunity=story_opportunity,
+            photo_action=photo_action,
+            photo_category=photo_category,
+            asset_attached=asset_attached,
+            story_photo_available=story_photo_available,
         )
 
     def _story_context(self, story, story_state) -> StoryContext | None:
@@ -505,3 +584,15 @@ class ConversationService:
         orm.relationship = state.relationship
         orm.current_topic = state.current_topic
         orm.open_threads = [item.model_dump(mode="json") for item in state.open_threads]
+
+    def _asset_spec(self, asset_id: str):
+        return next((item for item in self.assets.specs if item.id == asset_id), None)
+
+    def _story_photo_available(self, story, story_state) -> bool:
+        if story is None or story_state is None or not story_state.current_node_id:
+            return False
+        node = self.engine.current_node(story, story_state)
+        return any(
+            transition.emit_asset and self._asset_spec(transition.emit_asset) is not None
+            for transition in node.transitions
+        )

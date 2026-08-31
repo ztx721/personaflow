@@ -267,6 +267,33 @@ def _generator_decision_section(ctx: GeneratorContext) -> str:
     )
 
 
+def _photo_behavior_section(ctx: GeneratorContext) -> str:
+    action_rules = {
+        "none": "Do not introduce photo-related behavior.",
+        "offer": "You may naturally indicate that a photo could be shown, but do not claim to send one.",
+        "send": "A trusted relevant image is attached; refer to it naturally and briefly.",
+        "delay": "Do not send now. Softly postpone without promising a specific future time.",
+        "refuse": "Decline naturally in character without mentioning policy.",
+    }
+    attachment_rule = (
+        "An image WILL be attached to this exact reply."
+        if ctx.asset_attached
+        else "No image is attached. Never claim that you sent, attached, or are showing one."
+    )
+    availability_rule = (
+        "A trusted story photo exists and may be discussed, but it is not attached unless stated above. Do not deny its existence or invent a missing-file excuse."
+        if ctx.story_photo_available and not ctx.asset_attached
+        else "Do not invent availability for any photo that is not represented by the approved context."
+    )
+    return "\n".join([
+        "<photo_behavior>",
+        f"behavior: {action_rules[ctx.photo_action.value]}",
+        f"safe_category: {ctx.photo_category.value}",
+        attachment_rule,
+        availability_rule,
+        "Never mention category names, policy, relationship gates, asset tags, or story locks.",
+        "</photo_behavior>",
+    ])
 def planner_system_prompt(ctx: PlannerContext) -> str:
     contract = """<planner_contract>
 You are the private behavior planner for a stateful fictional character chat.
@@ -284,6 +311,8 @@ Semantic examples: "今天被老板骂了" is a good open proposal for an unfini
 Maintain emotion continuity. When the user apologizes, clarifies a joke, or repairs tension, normally soften the current emotion intensity toward baseline before proposing a very different emotion; never jump from high anger or sadness to high happiness without conversational cause.
 Propose at most one story transition, and only to an ID in allowed_transitions when the user's latest message naturally satisfies its hint. Otherwise set story_proposal to null.
 Always set story_pressure from 0 to 3. Use 0 when the user's boundary, clarification, distress, unrelated question, or active unfinished topic should take priority. Use 1 for a natural opening. Use 2 only when a gentle opening can be created without redirecting the user. Use 3 rarely. The application normalizes timing and validates every transition.
+Always set photo_action and photo_category. Mentions alone use none. For explicit requests, distinguish public objects from personal/selfie photos and propose send, delay, or refuse in character. Offer never sends by itself. Cancellation uses none. Never put URLs, paths, or asset IDs in any field.
+When the current story context shows that the character has already offered a photo and the user explicitly accepts or asks to see it, propose photo_action=send; the application still enforces story legality and trusted assets.
 The application owns story legality, state bounds, and media. Always set asset_tag to null; configured story transitions control story assets.
 For asset_request: set requested=true ONLY when the user's latest message explicitly asks to see, show, or view something from the current topic (e.g. 给我看看, 让我看看, 有图片吗, 有照片吗, 发我看看, 长什么样, 给我看看封面). Then propose 2-4 semantic tags from the trusted set: bookstore, book, history, song_dynasty, literature, novel, coffee, cat, food, meal, travel, beach, seaside. Merely mentioning photos, asking whether a photo was taken, or discussing how something looks is NOT a request; set requested=false. Never include URLs, file paths, or asset ids.
 Keep relationship deltas small (-2 to 2). Add at most three durable memory candidates. Do not write the final character dialogue.
@@ -317,6 +346,7 @@ Do not automatically provide emotional coaching. Acknowledge emotion briefly in 
 Do not always end with a question. If may_ask_question is false, do not ask one.
 When may_ask_question is false, end without a question mark or a new request for the user to respond.
 Social behavior and approved conversation guidance override response intent when they conflict.
+Approved photo_behavior also overrides response intent when they conflict. DELAY is a soft not-now response, not a final refusal; REFUSE is a clear boundary. Never blur SEND, DELAY, and REFUSE.
 For acknowledge or short_reply, do not introduce a question, offer, invitation, or new topic.
 For comfort, keep support brief; do not add advice, an offer, or a question unless may_ask_question is true.
 For a minimal acknowledgement, acknowledge it briefly; do not add a new explanation, offer, or topic.
@@ -345,6 +375,7 @@ Return only the Utterance.text content through the requested structured output.
             _open_threads_section(ctx),
             _generator_story_section(ctx),
             _generator_decision_section(ctx),
+            _photo_behavior_section(ctx),
             _social_behavior_section(ctx),
             _conversation_guidance_section(ctx),
         ]
@@ -368,6 +399,12 @@ _INTERNAL_TERMS = (
     "story_proposal",
     "story_pressure",
     "story opportunity",
+    "photoaction",
+    "photo_action",
+    "photocategory",
+    "photo_category",
+    "photo policy",
+    "story_locked",
     "asset_tag",
     "node_id",
     "schema metadata",

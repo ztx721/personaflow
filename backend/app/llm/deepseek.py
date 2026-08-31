@@ -33,6 +33,8 @@ _PLANNER_EXAMPLE = {
     "thread_updates": [],
     "resume_thread_id": None,
     "story_pressure": 0,
+    "photo_action": "none",
+    "photo_category": "other",
 }
 
 
@@ -135,6 +137,13 @@ class DeepSeekLLMClient(LLMClient):
                 "Always include story_pressure as an integer from 0 to 3. Most turns "
                 "should be 0 or 1; use nonzero pressure only when the latest message "
                 "creates a natural opening for the proposed legal story transition.",
+                "Always include photo_action (none, offer, send, delay, or refuse) "
+                "and photo_category (public_object, book, bookstore, coffee, cat, "
+                "food, travel, personal, selfie, or other). A photo mention is none; "
+                "an explicit request may propose send, but personal/selfie requests "
+                "should reflect persona, relationship, and emotion. Never provide an "
+                "asset ID, URL, or path; asset_request semantic tags remain the only "
+                "media lookup input.",
                 f"Valid JSON example: {example}",
             ]
         )
