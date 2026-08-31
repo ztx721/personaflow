@@ -5,7 +5,7 @@
       → 持久化角色消息/状态/剧情/TurnLog。
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -43,6 +43,7 @@ from .conversation_dynamics import (
     derive_response_guidance,
 )
 from .rules import apply_emotion, apply_relationship, apply_topic, clamp
+from .open_threads import active_threads, apply_thread_updates
 from .story_engine import StoryEngine
 
 
@@ -159,6 +160,18 @@ class ConversationService:
             errors.append(error_label("planner", exc))
             plan = PlannerOutput(response_intent=self.FALLBACK_INTENT)
 
+        turn_number = self.db.scalar(
+            select(func.count(TurnLog.id)).where(TurnLog.conversation_id == conversation_id)
+        ) + 1
+        thread_result = apply_thread_updates(
+            state,
+            plan.thread_updates,
+            plan.resume_thread_id,
+            turn_number,
+            content,
+            conversation_signals,
+        )
+
         # 5) 规则层应用提议（LLM 提议，代码裁决）
         apply_emotion(state, plan.emotion_proposal)
         apply_relationship(state, plan.relationship_delta)
@@ -229,7 +242,7 @@ class ConversationService:
         generator_context = self._generator_context(
             persona, state, story, story_state, content, plan, asset_tag,
             recent_turns, conversation_signals, response_guidance, social_action,
-            relationship_guidance, emotion_guidance,
+            relationship_guidance, emotion_guidance, thread_result.resumed,
         )
         try:
             reply = self.llm.generate(generator_context)
@@ -285,6 +298,13 @@ class ConversationService:
             "acknowledge_emotion": response_guidance.acknowledge_emotion,
             "avoid_repetition": response_guidance.avoid_repetition,
             "conversational_pressure": response_guidance.conversational_pressure.value,
+            "active_thread_count": len(active_threads(state)),
+            "opened_thread_ids": thread_result.opened,
+            "touched_thread_ids": thread_result.touched,
+            "resolved_thread_ids": thread_result.resolved,
+            "resumed_thread_id": (
+                thread_result.resumed.id if thread_result.resumed is not None else None
+            ),
         }
         self.db.add(
             TurnLog(
@@ -349,6 +369,7 @@ class ConversationService:
             conversation_signals=conversation_signals,
             relationship_guidance=relationship_guidance,
             emotion_guidance=emotion_guidance,
+            open_threads=active_threads(state),
         )
 
     def _generator_context(
@@ -366,6 +387,7 @@ class ConversationService:
         social_action: SocialAction,
         relationship_guidance: RelationshipGuidance,
         emotion_guidance: EmotionGuidance,
+        resumed_thread,
     ) -> GeneratorContext:
         return GeneratorContext(
             persona=persona,
@@ -380,6 +402,8 @@ class ConversationService:
             social_action=social_action,
             relationship_guidance=relationship_guidance,
             emotion_guidance=emotion_guidance,
+            open_threads=active_threads(state),
+            resumed_thread=resumed_thread,
         )
 
     def _story_context(self, story, story_state) -> StoryContext | None:
@@ -441,6 +465,7 @@ class ConversationService:
             emotion_intensity=orm.emotion_intensity,
             relationship=dict(orm.relationship),
             current_topic=orm.current_topic,
+            open_threads=orm.open_threads or [],
         )
 
     def _persist_state(self, orm: ConversationStateORM, state: ConversationState) -> None:
@@ -448,3 +473,4 @@ class ConversationService:
         orm.emotion_intensity = state.emotion_intensity
         orm.relationship = state.relationship
         orm.current_topic = state.current_topic
+        orm.open_threads = [item.model_dump(mode="json") for item in state.open_threads]

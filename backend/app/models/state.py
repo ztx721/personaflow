@@ -18,6 +18,7 @@ class ConversationState(Base):
     emotion_intensity: Mapped[int] = mapped_column(Integer, default=50)
     relationship: Mapped[dict] = mapped_column(JSON, default=dict)
     current_topic: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    open_threads: Mapped[list] = mapped_column(JSON, default=list)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 

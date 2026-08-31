@@ -16,6 +16,8 @@ from ..schemas import (
     PlannerOutput,
     SocialAction,
     StoryProposal,
+    ThreadUpdate,
+    ThreadUpdateAction,
 )
 from .client import LLMClient
 
@@ -63,6 +65,8 @@ class MockLLMClient(LLMClient):
             story_proposal=proposal,
             asset_request=self._detect_asset_request(ctx),
             memory_candidates=[],
+            thread_updates=self._thread_updates(ctx),
+            resume_thread_id=self._resume_thread(ctx),
         )
 
     @staticmethod
@@ -127,6 +131,33 @@ class MockLLMClient(LLMClient):
         if not tags and current_topic:
             tags = TOPIC_ASSET_TAGS.get(current_topic, [])
         return tags
+
+    @staticmethod
+    def _thread_updates(ctx: PlannerContext) -> list[ThreadUpdate]:
+        text = ctx.user_message
+        existing = next((item for item in ctx.open_threads if "老板" in item.topic), None)
+        if "老板" in text and any(word in text for word in ("骂", "烦", "难受", "委屈")):
+            if existing:
+                return [ThreadUpdate(
+                    action=ThreadUpdateAction.touch,
+                    thread_id=existing.id,
+                    topic="老板冲突",
+                    summary="用户提到和老板的冲突还没说完",
+                    priority=4,
+                )]
+            return [ThreadUpdate(
+                action=ThreadUpdateAction.open,
+                topic="老板冲突",
+                summary="用户提到和老板的冲突还没说完",
+                priority=4,
+            )]
+        return []
+
+    @staticmethod
+    def _resume_thread(ctx: PlannerContext) -> str | None:
+        if "刚才" not in ctx.user_message and "那个事" not in ctx.user_message:
+            return None
+        return next((item.id for item in ctx.open_threads if "老板" in item.topic), None)
 
     def _intent(self, ctx: PlannerContext, proposal: StoryProposal | None) -> str:
         if proposal is not None:

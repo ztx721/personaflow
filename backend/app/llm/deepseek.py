@@ -30,6 +30,8 @@ _PLANNER_EXAMPLE = {
     "story_proposal": None,
     "memory_candidates": [],
     "asset_request": {"requested": False, "tags": []},
+    "thread_updates": [],
+    "resume_thread_id": None,
 }
 
 
@@ -124,7 +126,11 @@ class DeepSeekLLMClient(LLMClient):
                 "(array of objects with text, fact_type chosen from user_fact or "
                 "character_fact, and integer importance from 1 to 5), and "
                 "asset_request (object with boolean requested and an array of "
-                "semantic string tags, as described in the contract).",
+                "semantic string tags, as described in the contract), thread_updates "
+                "(array of incremental objects with action open, touch, or resolve; "
+                "optional thread_id; short topic and summary; owner user, character, "
+                "or shared; and priority from 1 to 5), and resume_thread_id (an "
+                "existing active thread ID or null).",
                 f"Valid JSON example: {example}",
             ]
         )

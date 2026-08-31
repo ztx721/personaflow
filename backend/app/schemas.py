@@ -173,6 +173,45 @@ class StoryProposal(BaseModel):
     reason: str | None = None
 
 
+class OpenThreadStatus(str, Enum):
+    open = "open"
+    resolved = "resolved"
+
+
+class OpenThreadOwner(str, Enum):
+    user = "user"
+    character = "character"
+    shared = "shared"
+
+
+class ThreadUpdateAction(str, Enum):
+    open = "open"
+    touch = "touch"
+    resolve = "resolve"
+
+
+class OpenThread(BaseModel):
+    id: str
+    topic: str
+    summary: str
+    owner: OpenThreadOwner = OpenThreadOwner.user
+    created_turn: int
+    last_touched_turn: int
+    priority: int = Field(default=3, ge=1, le=5)
+    status: OpenThreadStatus = OpenThreadStatus.open
+
+
+class ThreadUpdate(BaseModel):
+    """Planner proposal; the application owns IDs and the persisted list."""
+
+    action: ThreadUpdateAction
+    thread_id: str | None = None
+    topic: str = ""
+    summary: str = ""
+    owner: OpenThreadOwner = OpenThreadOwner.user
+    priority: int = Field(default=3, ge=1, le=5)
+
+
 class AssetRequest(BaseModel):
     """Planner 对『会话驱动的素材』的提议。只含语义 tags，绝不允许 URL/路径/资产 id。
 
@@ -196,6 +235,8 @@ class PlannerOutput(BaseModel):
     story_proposal: StoryProposal | None = None
     memory_candidates: list[MemoryCandidate] = Field(default_factory=list)
     asset_request: AssetRequest = Field(default_factory=AssetRequest)
+    thread_updates: list[ThreadUpdate] = Field(default_factory=list)
+    resume_thread_id: str | None = None
 
 
 class Utterance(BaseModel):
@@ -361,6 +402,7 @@ class ConversationState(BaseModel):
     emotion_intensity: int = 50
     relationship: dict[str, int] = Field(default_factory=dict)
     current_topic: str | None = None
+    open_threads: list[OpenThread] = Field(default_factory=list)
 
 
 class StoryContext(BaseModel):
@@ -384,6 +426,7 @@ class PlannerContext(BaseModel):
     conversation_signals: ConversationSignals = Field(default_factory=ConversationSignals)
     relationship_guidance: RelationshipGuidance = Field(default_factory=RelationshipGuidance)
     emotion_guidance: EmotionGuidance = Field(default_factory=EmotionGuidance)
+    open_threads: list[OpenThread] = Field(default_factory=list)
 
 
 class GeneratorContext(BaseModel):
@@ -399,6 +442,8 @@ class GeneratorContext(BaseModel):
     social_action: SocialAction = SocialAction.reply
     relationship_guidance: RelationshipGuidance = Field(default_factory=RelationshipGuidance)
     emotion_guidance: EmotionGuidance = Field(default_factory=EmotionGuidance)
+    open_threads: list[OpenThread] = Field(default_factory=list)
+    resumed_thread: OpenThread | None = None
 
 
 # ---------------------------------------------------------------------------

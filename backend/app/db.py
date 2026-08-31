@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import BACKEND_DIR, settings
@@ -45,6 +45,12 @@ def init_db() -> None:
     from . import models  # noqa: F401  确保所有模型注册到 Base.metadata
 
     Base.metadata.create_all(bind=engine)
+    # The demo intentionally has no migration framework. Keep existing SQLite/
+    # PostgreSQL demo databases backward compatible with the additive V2 field.
+    columns = {item["name"] for item in inspect(engine).get_columns("conversation_states")}
+    if "open_threads" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE conversation_states ADD COLUMN open_threads JSON"))
 
 
 def get_db():
