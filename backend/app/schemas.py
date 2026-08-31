@@ -280,6 +280,41 @@ class SocialActionDecision(BaseModel):
     approved: SocialAction
     persona_adjusted: bool = False
     reason: str | None = None
+    relationship_adjusted: bool = False
+    relationship_reason: str | None = None
+
+
+class RelationshipBand(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
+class DisclosurePermission(str, Enum):
+    guarded = "guarded"
+    moderate = "moderate"
+    open = "open"
+
+
+class TeasingPermission(str, Enum):
+    restrained = "restrained"
+    normal = "normal"
+    relaxed = "relaxed"
+
+
+class ConversationalWarmth(str, Enum):
+    reserved = "reserved"
+    warm = "warm"
+    close = "close"
+
+
+class RelationshipGuidance(BaseModel):
+    band: RelationshipBand = RelationshipBand.low
+    disclosure_permission: DisclosurePermission = DisclosurePermission.guarded
+    teasing_permission: TeasingPermission = TeasingPermission.restrained
+    conversational_warmth: ConversationalWarmth = ConversationalWarmth.reserved
+    shorthand_preference: bool = False
+    personal_question_tolerance: RelationshipBand = RelationshipBand.low
 
 
 class ChatTurn(BaseModel):
@@ -317,6 +352,7 @@ class PlannerContext(BaseModel):
     recent_messages: list[ChatTurn] = Field(default_factory=list)
     user_message: str
     conversation_signals: ConversationSignals = Field(default_factory=ConversationSignals)
+    relationship_guidance: RelationshipGuidance = Field(default_factory=RelationshipGuidance)
 
 
 class GeneratorContext(BaseModel):
@@ -330,6 +366,7 @@ class GeneratorContext(BaseModel):
     conversation_signals: ConversationSignals = Field(default_factory=ConversationSignals)
     response_guidance: ResponseGuidance = Field(default_factory=ResponseGuidance)
     social_action: SocialAction = SocialAction.reply
+    relationship_guidance: RelationshipGuidance = Field(default_factory=RelationshipGuidance)
 
 
 # ---------------------------------------------------------------------------

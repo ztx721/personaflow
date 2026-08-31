@@ -29,6 +29,7 @@ from ..schemas import (
     PlannerOutput,
     PersonaConfig,
     ResponseGuidance,
+    RelationshipGuidance,
     SocialAction,
     StoryContext,
 )
@@ -36,6 +37,7 @@ from .asset_service import AssetService
 from .conversation_dynamics import (
     decide_social_action,
     derive_conversation_signals,
+    derive_relationship_guidance,
     derive_response_guidance,
 )
 from .rules import apply_emotion, apply_relationship, apply_topic, clamp
@@ -116,6 +118,7 @@ class ConversationService:
         state = self._to_state_view(orm_state, conv.role_id)
         recent_turns = self._recent_turns(conversation_id)
         conversation_signals = derive_conversation_signals(content, recent_turns, state)
+        relationship_guidance = derive_relationship_guidance(state)
 
         # 3) 剧情：on_first_message → 进入 entry_node
         story = self.engine.get_story(conv.story_id) if conv.story_id else None
@@ -145,7 +148,7 @@ class ConversationService:
         # 4) 规划（LLM #1）
         planner_context = self._planner_context(
             persona, state, story, story_state, content, recent_turns,
-            conversation_signals,
+            conversation_signals, relationship_guidance,
         )
         try:
             plan = self.llm.plan(planner_context)
@@ -159,6 +162,7 @@ class ConversationService:
             recent_turns,
             persona.social_behavior,
             state,
+            relationship_guidance,
         )
         social_action = social_decision.approved
 
@@ -220,6 +224,7 @@ class ConversationService:
         generator_context = self._generator_context(
             persona, state, story, story_state, content, plan, asset_tag,
             recent_turns, conversation_signals, response_guidance, social_action,
+            relationship_guidance,
         )
         try:
             reply = self.llm.generate(generator_context)
@@ -256,6 +261,9 @@ class ConversationService:
             "social_action_approved": social_decision.approved.value,
             "persona_adjusted": social_decision.persona_adjusted,
             "persona_policy_reason": social_decision.reason,
+            "relationship_band": relationship_guidance.band.value,
+            "relationship_adjusted": social_decision.relationship_adjusted,
+            "relationship_policy_reason": social_decision.relationship_reason,
             "emotional_cue": conversation_signals.emotional_cue.value,
             "topic_shift": conversation_signals.topic_shift,
             "response_mode": response_guidance.response_mode.value,
@@ -315,6 +323,7 @@ class ConversationService:
         content: str,
         recent_turns: list[ChatTurn],
         conversation_signals: ConversationSignals,
+        relationship_guidance: RelationshipGuidance,
     ) -> PlannerContext:
         return PlannerContext(
             persona=persona,
@@ -324,6 +333,7 @@ class ConversationService:
             recent_messages=recent_turns,
             user_message=content,
             conversation_signals=conversation_signals,
+            relationship_guidance=relationship_guidance,
         )
 
     def _generator_context(
@@ -339,6 +349,7 @@ class ConversationService:
         conversation_signals: ConversationSignals,
         response_guidance: ResponseGuidance,
         social_action: SocialAction,
+        relationship_guidance: RelationshipGuidance,
     ) -> GeneratorContext:
         return GeneratorContext(
             persona=persona,
@@ -351,6 +362,7 @@ class ConversationService:
             conversation_signals=conversation_signals,
             response_guidance=response_guidance,
             social_action=social_action,
+            relationship_guidance=relationship_guidance,
         )
 
     def _story_context(self, story, story_state) -> StoryContext | None:

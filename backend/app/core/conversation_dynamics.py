@@ -10,15 +10,20 @@ from ..schemas import (
     ConversationSignals,
     ConversationState,
     ConversationalPressure,
+    ConversationalWarmth,
+    DisclosurePermission,
     EmotionalCue,
     FollowupPreference,
     PersonaSocialPolicy,
     ResponseGuidance,
     ResponseMode,
+    RelationshipBand,
+    RelationshipGuidance,
     SocialAction,
     SocialActionDecision,
     SocialTraitLevel,
     TargetLength,
+    TeasingPermission,
     UserAct,
 )
 
@@ -54,8 +59,38 @@ _DISENGAGEMENT_MARKERS = (
     "不想回答", "不想说", "算了", "别问了", "不聊了", "先不说", "可以不回答",
 )
 _PERSONAL_QUESTION_MARKERS = (
-    "小时候", "感情", "前任", "秘密", "收入", "工资", "家里", "为什么这么安静",
+    "小时候", "感情", "前任", "恋爱", "谈过", "秘密", "收入", "工资", "家里",
+    "住哪", "电话", "联系方式", "私密", "隐私", "私人照片", "为什么这么安静",
 )
+
+RELATIONSHIP_MEDIUM_THRESHOLD = 35
+RELATIONSHIP_HIGH_THRESHOLD = 70
+
+
+def derive_relationship_guidance(state: ConversationState) -> RelationshipGuidance:
+    """Derive request-time behavior context without adding persisted state."""
+    trust = state.relationship.get("trust", 0)
+    affection = state.relationship.get("affection", 0)
+    score = (trust + affection) / 2
+    if score >= RELATIONSHIP_HIGH_THRESHOLD:
+        return RelationshipGuidance(
+            band=RelationshipBand.high,
+            disclosure_permission=DisclosurePermission.open,
+            teasing_permission=TeasingPermission.relaxed,
+            conversational_warmth=ConversationalWarmth.close,
+            shorthand_preference=True,
+            personal_question_tolerance=RelationshipBand.high,
+        )
+    if score >= RELATIONSHIP_MEDIUM_THRESHOLD:
+        return RelationshipGuidance(
+            band=RelationshipBand.medium,
+            disclosure_permission=DisclosurePermission.moderate,
+            teasing_permission=TeasingPermission.normal,
+            conversational_warmth=ConversationalWarmth.warm,
+            shorthand_preference=True,
+            personal_question_tolerance=RelationshipBand.medium,
+        )
+    return RelationshipGuidance()
 
 
 def derive_conversation_signals(
@@ -204,11 +239,21 @@ def decide_social_action(
     recent_messages: list[ChatTurn],
     persona_policy: PersonaSocialPolicy | None = None,
     state: ConversationState | None = None,
+    relationship_guidance: RelationshipGuidance | None = None,
 ) -> SocialActionDecision:
     """Apply only small, deterministic compatibility checks to an LLM proposal."""
     policy = persona_policy or PersonaSocialPolicy()
     approved = action
     reason = None
+    relationship_reason = None
+    relationship = relationship_guidance or RelationshipGuidance(
+        band=RelationshipBand.medium,
+        disclosure_permission=DisclosurePermission.moderate,
+        teasing_permission=TeasingPermission.normal,
+        conversational_warmth=ConversationalWarmth.warm,
+        shorthand_preference=True,
+        personal_question_tolerance=RelationshipBand.medium,
+    )
 
     if signals.user_disengagement:
         if action not in {SocialAction.acknowledge, SocialAction.short_reply, SocialAction.avoid}:
@@ -227,6 +272,19 @@ def decide_social_action(
         and _relationship_low(state)
     ):
         approved, reason = SocialAction.avoid, "open_up_suppressed_low_openness"
+    elif (
+        action is SocialAction.open_up
+        and signals.asks_personal_question
+        and relationship.band is RelationshipBand.low
+    ):
+        approved = SocialAction.avoid
+        relationship_reason = "private_open_up_suppressed_low_relationship"
+    elif (
+        action is SocialAction.tease
+        and relationship.teasing_permission is TeasingPermission.restrained
+    ):
+        approved = SocialAction.reply
+        relationship_reason = "teasing_restrained_low_relationship"
     elif action is SocialAction.ask_back:
         approved, reason = _normalize_ask_back(signals, recent_messages, policy)
 
@@ -239,6 +297,8 @@ def decide_social_action(
             "followup_restrained_by_persona",
         },
         reason=reason,
+        relationship_adjusted=relationship_reason is not None,
+        relationship_reason=relationship_reason,
     )
 
 

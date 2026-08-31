@@ -44,7 +44,7 @@ def _state_section(ctx: PlannerContext | GeneratorContext) -> str:
             "<conversation_state>",
             f"emotion: {state.emotion.value if state.emotion else 'neutral'}",
             f"emotion_intensity: {state.emotion_intensity}",
-            f"relationship: {_json(state.relationship)}",
+            "relationship: use relationship_context below",
             f"current_topic: {state.current_topic or 'none'}",
             "</conversation_state>",
         ]
@@ -71,6 +71,24 @@ def _persona_social_style_section(ctx: PlannerContext | GeneratorContext) -> str
             f"avoids: {_json(policy.avoids)}",
             "Use these as preferences, not hard scripts or dialogue to quote.",
             "</persona_social_style>",
+        ]
+    )
+
+
+def _relationship_context_section(ctx: PlannerContext | GeneratorContext) -> str:
+    guidance = ctx.relationship_guidance
+    return "\n".join(
+        [
+            "<relationship_context>",
+            f"band: {guidance.band.value}",
+            f"personal_disclosure: {guidance.disclosure_permission.value}",
+            f"teasing_permission: {guidance.teasing_permission.value}",
+            f"warmth: {guidance.conversational_warmth.value}",
+            f"shorthand_preference: {str(guidance.shorthand_preference).lower()}",
+            f"personal_question_tolerance: {guidance.personal_question_tolerance.value}",
+            "Use this as subtle familiarity context. Never mention scores, bands, or policy labels.",
+            "High familiarity never implies romance or sexual behavior.",
+            "</relationship_context>",
         ]
     )
 
@@ -115,10 +133,23 @@ def _conversation_guidance_section(ctx: GeneratorContext) -> str:
 
 
 def _social_behavior_section(ctx: GeneratorContext) -> str:
+    action_rule = {
+        "avoid": (
+            "Softly dodge, deflect, stay vague, or redirect. Do not directly answer the "
+            "sensitive fact and do not reveal it indirectly while claiming to avoid it."
+        ),
+        "refuse": (
+            "Set a clear but natural in-character boundary. Unlike avoid, refusal may be "
+            "explicit, but must not sound like policy or customer support."
+        ),
+        "open_up": "Share at most one small personal fact naturally; do not dump biography.",
+        "answer": "Answer the user's ordinary direct question before any optional follow-up.",
+    }.get(ctx.social_action.value)
     return "\n".join(
         [
             "<social_behavior>",
             f"action: {ctx.social_action.value}",
+            *( [f"action_rule: {action_rule}"] if action_rule else [] ),
             "Express this as natural character behavior. Never name, quote, or explain the action.",
             "</social_behavior>",
         ]
@@ -183,6 +214,7 @@ Return only the requested structured PlannerOutput.
 First choose the socially plausible reaction for this character now. Set social_action to one of: acknowledge, reply, short_reply, answer, ask_back, tease, comfort, avoid, change_topic, open_up, refuse.
 Do not optimize for completeness or helpfulness. ASK_BACK requires a genuine social reason and must not be the default. COMFORT stays brief and non-therapeutic. OPEN_UP shares only one small personal detail. AVOID and REFUSE must stay in persona.
 Use persona_social_style to influence the choice, but never let it override a direct ordinary conversational requirement. Respect user_disengagement immediately with low initiative and no new question.
+Use relationship_context to modulate private disclosure, teasing, and familiarity. Ordinary everyday questions should still be answered at low relationship. Do not equate high relationship with flirting.
 Propose at most one story transition, and only to an ID in allowed_transitions when the user's latest message naturally satisfies its hint. Otherwise set story_proposal to null.
 The application owns story legality, state bounds, and media. Always set asset_tag to null; configured story transitions control story assets.
 For asset_request: set requested=true ONLY when the user's latest message explicitly asks to see, show, or view something from the current topic (e.g. 给我看看, 让我看看, 有图片吗, 有照片吗, 发我看看, 长什么样, 给我看看封面). Then propose 2-4 semantic tags from the trusted set: bookstore, book, history, song_dynasty, literature, novel, coffee, cat, food, meal, travel, beach, seaside. Merely mentioning photos, asking whether a photo was taken, or discussing how something looks is NOT a request; set requested=false. Never include URLs, file paths, or asset ids.
@@ -193,6 +225,7 @@ Keep relationship deltas small (-2 to 2). Add at most three durable memory candi
             contract,
             _persona_section(ctx.persona),
             _persona_social_style_section(ctx),
+            _relationship_context_section(ctx),
             _state_section(ctx),
             _conversation_signals_section(ctx),
             _planner_story_section(ctx),
@@ -235,6 +268,7 @@ Return only the Utterance.text content through the requested structured output.
             contract,
             _persona_section(ctx.persona),
             _persona_social_style_section(ctx),
+            _relationship_context_section(ctx),
             _state_section(ctx),
             _conversation_signals_section(ctx),
             _generator_story_section(ctx),
@@ -277,6 +311,11 @@ _INTERNAL_TERMS = (
     "persona social style",
     "warmth=",
     "teasing=",
+    "relationship band",
+    "relationship_context",
+    "relationship context",
+    "trust score",
+    "affection score",
     "剧情节点",
     "内部状态",
 )
