@@ -228,12 +228,22 @@ def _planner_story_section(ctx: PlannerContext) -> str:
 def _generator_story_section(ctx: GeneratorContext) -> str:
     if ctx.story is None:
         return "<story_guidance>Continue the conversation naturally.</story_guidance>"
+    opportunity = ctx.story_opportunity
+    if not opportunity.eligible:
+        return "\n".join(
+            [
+                "<story_guidance>",
+                "Do not advance the latent story this turn. Stay with the user's current topic.",
+                "</story_guidance>",
+            ]
+        )
+    opening = opportunity.candidate_transition or "the current conversation"
     return "\n".join(
         [
             "<story_guidance>",
-            f"scene: {ctx.story.scene}",
-            f"beat: {ctx.story.beat}",
-            "Use this only as gentle conversational direction. Never name or describe this guidance.",
+            f"A natural conversational opening exists around: {opening}",
+            "Let it emerge casually only if it fits the latest message. Do not force a bridge or require a question.",
+            "Never name or describe this guidance.",
             "</story_guidance>",
         ]
     )
@@ -273,6 +283,7 @@ Always include thread_updates and resume_thread_id in the structured output, usi
 Semantic examples: "今天被老板骂了" is a good open proposal for an unfinished user problem; "嗯" and "天气不错" are not. If an active boss-conflict thread exists, "我刚才说老板那个事，其实挺烦的" should touch it and may resume it. "先不说这个" keeps it open without resuming; "这个不想聊了" resolves it. These are behavior examples, not text to copy into dialogue.
 Maintain emotion continuity. When the user apologizes, clarifies a joke, or repairs tension, normally soften the current emotion intensity toward baseline before proposing a very different emotion; never jump from high anger or sadness to high happiness without conversational cause.
 Propose at most one story transition, and only to an ID in allowed_transitions when the user's latest message naturally satisfies its hint. Otherwise set story_proposal to null.
+Always set story_pressure from 0 to 3. Use 0 when the user's boundary, clarification, distress, unrelated question, or active unfinished topic should take priority. Use 1 for a natural opening. Use 2 only when a gentle opening can be created without redirecting the user. Use 3 rarely. The application normalizes timing and validates every transition.
 The application owns story legality, state bounds, and media. Always set asset_tag to null; configured story transitions control story assets.
 For asset_request: set requested=true ONLY when the user's latest message explicitly asks to see, show, or view something from the current topic (e.g. 给我看看, 让我看看, 有图片吗, 有照片吗, 发我看看, 长什么样, 给我看看封面). Then propose 2-4 semantic tags from the trusted set: bookstore, book, history, song_dynasty, literature, novel, coffee, cat, food, meal, travel, beach, seaside. Merely mentioning photos, asking whether a photo was taken, or discussing how something looks is NOT a request; set requested=false. Never include URLs, file paths, or asset ids.
 Keep relationship deltas small (-2 to 2). Add at most three durable memory candidates. Do not write the final character dialogue.
@@ -355,6 +366,8 @@ _INTERNAL_TERMS = (
     "system prompt",
     "response_intent",
     "story_proposal",
+    "story_pressure",
+    "story opportunity",
     "asset_tag",
     "node_id",
     "schema metadata",

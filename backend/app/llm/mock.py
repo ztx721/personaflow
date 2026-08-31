@@ -16,6 +16,7 @@ from ..schemas import (
     PlannerOutput,
     SocialAction,
     StoryProposal,
+    StoryPressure,
     ThreadUpdate,
     ThreadUpdateAction,
 )
@@ -67,6 +68,9 @@ class MockLLMClient(LLMClient):
             memory_candidates=[],
             thread_updates=self._thread_updates(ctx),
             resume_thread_id=self._resume_thread(ctx),
+            story_pressure=(
+                StoryPressure.opportunistic if proposal is not None else StoryPressure.none
+            ),
         )
 
     @staticmethod

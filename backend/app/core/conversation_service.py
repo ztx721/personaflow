@@ -33,6 +33,7 @@ from ..schemas import (
     RelationshipGuidance,
     SocialAction,
     StoryContext,
+    StoryOpportunity,
 )
 from .asset_service import AssetService
 from .conversation_dynamics import (
@@ -45,6 +46,7 @@ from .conversation_dynamics import (
 from .rules import apply_emotion, apply_relationship, apply_topic, clamp
 from .open_threads import active_threads, apply_thread_updates
 from .story_engine import StoryEngine
+from .story_pressure import normalize_story_pressure
 
 
 class ConversationService:
@@ -189,24 +191,40 @@ class ConversationService:
         )
         social_action = social_decision.approved
 
+        transition = None
+        story_node_before = story_state.current_node_id if story_state is not None else None
         if plan.story_proposal is not None and story and story_state is not None:
             transition = self.engine.match_transition(
                 story, story_state, plan.story_proposal.next_node_id
             )
             if transition is None:
                 errors.append(f"非法剧情迁移: {plan.story_proposal.next_node_id}")
-            else:
-                prev = story_state.current_node_id
-                node, newly = self.engine.apply_transition(story, story_state, transition)
-                applied["story"] = {
-                    "from": prev,
-                    "to": story_state.current_node_id,
-                    "reason": transition.reason,
-                }
-                if transition.emit_asset:
-                    asset_tag = transition.emit_asset
-                if newly:
-                    asset_tag = self._apply_on_enter(story, node, conversation_id, asset_tag)
+
+        story_pressure = normalize_story_pressure(
+            plan.story_pressure,
+            conversation_signals,
+            social_action,
+            emotion_guidance,
+            active_threads(state),
+            thread_result.resumed,
+            content,
+            transition,
+            bool(story_state is not None and story_state.status == "active"),
+        )
+        story_transition_applied = False
+        if transition is not None and story_pressure.opportunity.eligible:
+            prev = story_state.current_node_id
+            node, newly = self.engine.apply_transition(story, story_state, transition)
+            story_transition_applied = True
+            applied["story"] = {
+                "from": prev,
+                "to": story_state.current_node_id,
+                "reason": transition.reason,
+            }
+            if transition.emit_asset:
+                asset_tag = transition.emit_asset
+            if newly:
+                asset_tag = self._apply_on_enter(story, node, conversation_id, asset_tag)
 
         if plan.asset_tag and asset_tag is None:
             asset_tag = plan.asset_tag  # planner 主动动作（如 SEND_PHOTO）
@@ -243,6 +261,7 @@ class ConversationService:
             persona, state, story, story_state, content, plan, asset_tag,
             recent_turns, conversation_signals, response_guidance, social_action,
             relationship_guidance, emotion_guidance, thread_result.resumed,
+            story_pressure.opportunity,
         )
         try:
             reply = self.llm.generate(generator_context)
@@ -305,6 +324,16 @@ class ConversationService:
             "resumed_thread_id": (
                 thread_result.resumed.id if thread_result.resumed is not None else None
             ),
+            "story_pressure_proposed": int(story_pressure.proposed),
+            "story_pressure_approved": int(story_pressure.approved),
+            "story_pressure_adjusted": story_pressure.adjusted,
+            "story_pressure_reason": story_pressure.reason,
+            "story_opportunity": story_pressure.opportunity.model_dump(mode="json"),
+            "story_node_before": story_node_before,
+            "story_node_after": (
+                story_state.current_node_id if story_state is not None else None
+            ),
+            "story_transition_applied": story_transition_applied,
         }
         self.db.add(
             TurnLog(
@@ -388,6 +417,7 @@ class ConversationService:
         relationship_guidance: RelationshipGuidance,
         emotion_guidance: EmotionGuidance,
         resumed_thread,
+        story_opportunity: StoryOpportunity,
     ) -> GeneratorContext:
         return GeneratorContext(
             persona=persona,
@@ -404,6 +434,7 @@ class ConversationService:
             emotion_guidance=emotion_guidance,
             open_threads=active_threads(state),
             resumed_thread=resumed_thread,
+            story_opportunity=story_opportunity,
         )
 
     def _story_context(self, story, story_state) -> StoryContext | None:

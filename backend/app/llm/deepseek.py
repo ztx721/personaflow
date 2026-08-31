@@ -32,6 +32,7 @@ _PLANNER_EXAMPLE = {
     "asset_request": {"requested": False, "tags": []},
     "thread_updates": [],
     "resume_thread_id": None,
+    "story_pressure": 0,
 }
 
 
@@ -131,6 +132,9 @@ class DeepSeekLLMClient(LLMClient):
                 "optional thread_id; short topic and summary; owner user, character, "
                 "or shared; and priority from 1 to 5), and resume_thread_id (an "
                 "existing active thread ID or null).",
+                "Always include story_pressure as an integer from 0 to 3. Most turns "
+                "should be 0 or 1; use nonzero pressure only when the latest message "
+                "creates a natural opening for the proposed legal story transition.",
                 f"Valid JSON example: {example}",
             ]
         )

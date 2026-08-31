@@ -1,5 +1,5 @@
 from datetime import datetime
-from enum import Enum
+from enum import Enum, IntEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -173,6 +173,29 @@ class StoryProposal(BaseModel):
     reason: str | None = None
 
 
+class StoryPressure(IntEnum):
+    none = 0
+    opportunistic = 1
+    active = 2
+    strong = 3
+
+
+class StoryOpportunity(BaseModel):
+    eligible: bool = False
+    pressure: StoryPressure = StoryPressure.none
+    natural_trigger: str | None = None
+    blocked_reason: str | None = None
+    candidate_transition: str | None = None
+
+
+class StoryPressureDecision(BaseModel):
+    proposed: StoryPressure = StoryPressure.none
+    approved: StoryPressure = StoryPressure.none
+    adjusted: bool = False
+    reason: str = "no_story_opportunity"
+    opportunity: StoryOpportunity = Field(default_factory=StoryOpportunity)
+
+
 class OpenThreadStatus(str, Enum):
     open = "open"
     resolved = "resolved"
@@ -237,6 +260,7 @@ class PlannerOutput(BaseModel):
     asset_request: AssetRequest = Field(default_factory=AssetRequest)
     thread_updates: list[ThreadUpdate] = Field(default_factory=list)
     resume_thread_id: str | None = None
+    story_pressure: StoryPressure = StoryPressure.none
 
 
 class Utterance(BaseModel):
@@ -444,6 +468,7 @@ class GeneratorContext(BaseModel):
     emotion_guidance: EmotionGuidance = Field(default_factory=EmotionGuidance)
     open_threads: list[OpenThread] = Field(default_factory=list)
     resumed_thread: OpenThread | None = None
+    story_opportunity: StoryOpportunity = Field(default_factory=StoryOpportunity)
 
 
 # ---------------------------------------------------------------------------
