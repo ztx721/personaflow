@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from typing import Any
 
 from ..schemas import ChatTurn, GeneratorContext, PersonaConfig, PlannerContext
@@ -70,6 +71,78 @@ def _persona_social_style_section(ctx: PlannerContext | GeneratorContext) -> str
             f"avoids: {_json(policy.avoids)}",
             "Use these as preferences, not hard scripts or dialogue to quote.",
             "</persona_social_style>",
+        ]
+    )
+
+
+_OPENING_FILLERS = ("唔", "嗯", "啊", "哈哈", "……", "...")
+_STYLE_FEEDBACK_MARKERS = (
+    "别老说", "不要每句", "别这样说话", "不喜欢这个语气", "每次都说", "每次说话都",
+    "能不能别老", "别再说", "又要说",
+)
+_GENERIC_STYLE_FOLLOWUPS = ("我不喜欢", "不喜欢", "别这样", "不要这样")
+
+
+def _opening_filler(text: str) -> str | None:
+    value = text.lstrip(" \t\r\n\"'“‘（(")
+    return next((filler for filler in _OPENING_FILLERS if value.startswith(filler)), None)
+
+
+def _style_feedback(text: str) -> bool:
+    return any(marker in text for marker in _STYLE_FEEDBACK_MARKERS)
+
+
+def _mentioned_fillers(text: str) -> list[str]:
+    return [filler for filler in _OPENING_FILLERS if filler in text]
+
+
+def _verbal_variation_section(ctx: GeneratorContext) -> str:
+    recent_character = [
+        turn.content for turn in ctx.recent_messages if turn.sender == "character"
+    ][-5:]
+    recent_openings = [
+        opening for text in recent_character if (opening := _opening_filler(text))
+    ]
+    repeated = [
+        filler for filler, count in Counter(recent_openings).items() if count >= 2
+    ]
+
+    recent_users = [turn.content for turn in ctx.recent_messages if turn.sender == "user"][-6:]
+    current_feedback = _style_feedback(ctx.user_message)
+    prior_feedback = next(
+        (text for text in reversed(recent_users) if _style_feedback(text)), None
+    )
+    generic_followup = any(
+        marker in ctx.user_message for marker in _GENERIC_STYLE_FOLLOWUPS
+    ) and prior_feedback is not None
+    feedback_active = current_feedback or generic_followup
+    feedback_source = ctx.user_message if current_feedback else (prior_feedback or "")
+    disliked = _mentioned_fillers(feedback_source)
+    avoid = list(dict.fromkeys([*repeated, *disliked]))
+    feedback_requirement = (
+        "Current response requirement: the user is criticizing the speaking style. "
+        "Briefly acknowledge and adjust only. Do not answer why, give a cause, or describe it "
+        "as a habit, personality trait, shyness, or thinking before speaking. "
+        "当前只简短承认并调整，不解释为什么，也不要说是习惯、性格、害羞或说话前要先想。"
+        if feedback_active else
+        "No immediate style-feedback acknowledgement is required."
+    )
+
+    return "\n".join(
+        [
+            "<verbal_variation>",
+            f"recent_character_openings: {_json(recent_openings)}",
+            f"openings_to_avoid_this_turn: {_json(avoid)}",
+            f"style_feedback_active: {str(feedback_active).lower()}",
+            feedback_requirement,
+            "Persona speech habits are preferences, never mandatory prefixes or lexical signatures.",
+            "Natural human speech varies. Do not mechanically begin consecutive replies with the same filler.",
+            "If an opening is listed to avoid, do not begin this reply with it; the word remains allowed occasionally elsewhere.",
+            "If style_feedback_active is true, only acknowledge the user's preference briefly and comply; do not answer why or explain a cause.",
+            "A disliked opening inherited from recent feedback remains avoided silently; do not keep acknowledging the feedback.",
+            "Never explain the repetition as prompt mechanics, personality, shyness, thinking before speaking, or an invented personal habit.",
+            "Express quietness, shyness, or hesitation through brevity, restraint, occasional pauses, and less direct wording instead of a repeated filler.",
+            "</verbal_variation>",
         ]
     )
 
@@ -395,6 +468,7 @@ Return only the Utterance.text content through the requested structured output.
             contract,
             _persona_section(ctx.persona),
             _persona_social_style_section(ctx),
+            _verbal_variation_section(ctx),
             _relationship_context_section(ctx),
             _emotion_context_section(ctx),
             _state_section(ctx),
@@ -449,6 +523,9 @@ _INTERNAL_TERMS = (
     "persona policy",
     "persona_social_style",
     "persona social style",
+    "verbal_variation",
+    "verbal variation",
+    "openings_to_avoid",
     "warmth=",
     "teasing=",
     "relationship band",

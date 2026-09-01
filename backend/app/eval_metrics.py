@@ -3,6 +3,39 @@
 from __future__ import annotations
 
 
+_OPENING_FILLERS = ("唔", "嗯", "啊", "哈哈", "……", "...")
+
+
+def reply_opening_filler(reply: str) -> str | None:
+    value = reply.lstrip(" \t\r\n\"'“‘（(")
+    return next((filler for filler in _OPENING_FILLERS if value.startswith(filler)), None)
+
+
+def analyze_opening_repetition(replies: list[str]) -> dict[str, object]:
+    openings = [reply_opening_filler(reply) for reply in replies]
+    filler_count = sum(opening is not None for opening in openings)
+    repeated_count = 0
+    longest_streak = 0
+    current_streak = 0
+    previous: str | None = None
+    for opening in openings:
+        if opening is not None and opening == previous:
+            current_streak += 1
+            repeated_count += 1
+        elif opening is not None:
+            current_streak = 1
+        else:
+            current_streak = 0
+        longest_streak = max(longest_streak, current_streak)
+        previous = opening
+    return {
+        "repeated_opening_count": repeated_count,
+        "longest_identical_opening_streak": longest_streak,
+        "filler_count": filler_count,
+        "filler_frequency": filler_count / len(replies) if replies else 0.0,
+    }
+
+
 _EMOTION = ("累", "烦", "难受", "不开心", "心情", "压力", "委屈", "难过")
 _ADVICE = ("应该", "不如", "试试", "休息", "歇一歇", "放松", "早点睡", "出去走走")
 _EMPATHY = ("辛苦", "难受", "不容易", "太累", "太烦", "心疼")
