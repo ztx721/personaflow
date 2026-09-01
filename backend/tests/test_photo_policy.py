@@ -228,7 +228,29 @@ def test_generator_knows_story_photo_exists_without_claiming_it_was_sent():
     assert "No image is attached" in prompt
 
 
+def test_generator_receives_safe_canonical_story_facts_without_internal_ids():
+    ctx = generator_context(attached=False, action=PhotoAction.none)
+    ctx.canonical_story_facts = ["林小满去过海边。", "她在那次经历中拍了照片。"]
+    prompt = generator_system_prompt(ctx)
+    assert "林小满去过海边" in prompt
+    assert "keep it vague" in prompt
+    assert "travel_photo" not in prompt
+    assert "photo_offer" not in prompt
+
+
 def test_photo_policy_labels_cannot_leak_visibly():
     ctx = generator_context(attached=False, action=PhotoAction.delay)
     with pytest.raises(UnsafeGeneratorOutputError):
         validate_visible_reply("photo_action is delay", ctx)
+
+
+def test_personal_request_reaches_photo_policy_without_substitute_asset():
+    with TestClient(app) as client:
+        cid = new_conversation(client)
+        body = post(client, cid, "发张你的看看")
+        assert body["asset_url"] is None
+        debug = client.get(f"/api/conversations/{cid}/debug").json()
+        guidance = debug["last_turn"]["applied"]["conversation_guidance"]
+        assert guidance["photo_category"] == "selfie"
+        assert guidance["photo_action_approved"] in {"delay", "refuse"}
+        assert guidance["photo_policy_reason"] != "no_explicit_request"

@@ -294,6 +294,19 @@ def _photo_behavior_section(ctx: GeneratorContext) -> str:
         "Never mention category names, policy, relationship gates, asset tags, or story locks.",
         "</photo_behavior>",
     ])
+
+
+def _canonical_story_facts_section(ctx: GeneratorContext) -> str:
+    if not ctx.canonical_story_facts:
+        return ""
+    facts = "\n".join(f"- {fact}" for fact in ctx.canonical_story_facts)
+    return "\n".join([
+        "<canonical_story_facts>", facts,
+        "Preserve these facts. Do not contradict them.",
+        "If time, date, or visit count is not defined here, keep it vague and do not invent precision.",
+        "When directly asked for undefined chronology, say naturally that the exact time is unclear; never guess a year, season, relative date, or visit count.",
+        "</canonical_story_facts>",
+    ])
 def planner_system_prompt(ctx: PlannerContext) -> str:
     contract = """<planner_contract>
 You are the private behavior planner for a stateful fictional character chat.
@@ -374,6 +387,7 @@ Return only the Utterance.text content through the requested structured output.
             _conversation_signals_section(ctx),
             _open_threads_section(ctx),
             _generator_story_section(ctx),
+            _canonical_story_facts_section(ctx),
             _generator_decision_section(ctx),
             _photo_behavior_section(ctx),
             _social_behavior_section(ctx),

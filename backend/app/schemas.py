@@ -179,6 +179,7 @@ class StoryConfig(BaseModel):
     description: str = ""
     entry_node: str
     trigger: str = "on_first_message"  # "immediate" | "on_first_message"
+    canonical_facts: list[str] = Field(default_factory=list)
     nodes: dict[str, StoryNode]
 
 
@@ -521,6 +522,7 @@ class GeneratorContext(BaseModel):
     photo_category: PhotoCategory = PhotoCategory.other
     asset_attached: bool = False
     story_photo_available: bool = False
+    canonical_story_facts: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

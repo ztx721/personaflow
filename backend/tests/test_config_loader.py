@@ -20,6 +20,9 @@ def test_loads_travel_photo_story():
 
     assert story.entry_node == "greeting"
     assert story.trigger == "on_first_message"
+    assert story.canonical_facts
+    assert not any("去年" in fact or "年前" in fact for fact in story.canonical_facts)
+    assert any("具体日期" in fact and "未定义" in fact for fact in story.canonical_facts)
     assert set(story.nodes) == {
         "greeting", "rapport", "weekend", "beach_trip", "photo_offer", "photo_sent",
     }

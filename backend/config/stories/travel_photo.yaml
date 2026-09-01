@@ -3,6 +3,10 @@ title: 旅行照片
 description: 林小满和顾客聊起上周去海边的短途旅行，最后分享了一张她拍的照片。
 trigger: on_first_message
 entry_node: greeting
+canonical_facts:
+  - 林小满去过故事中提到的海边。
+  - 林小满在那次海边经历中拍下了可分享的海边照片。
+  - 这次海边经历和照片的具体日期、年份及去过次数均未定义。
 
 nodes:
   greeting:

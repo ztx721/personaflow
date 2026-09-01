@@ -46,6 +46,12 @@ _IMAGE_REQUEST_MARKERS = (
     "给我看看", "让我看看", "发我看看", "发张图", "发图片", "发照片",
     "给张照片", "给个图", "长什么样",
 )
+_PERSONAL_IMAGE_REQUEST_MARKERS = (
+    "你自己的照片呢", "发张你的看看", "你的照片呢", "给我看看你的",
+    "发张你自己的", "你的自拍", "发张自拍",
+)
+_AMBIGUOUS_IMAGE_REQUEST_MARKERS = ("你的呢",)
+_PHOTO_CONTEXT_MARKERS = ("照片", "图片", "自拍", "拍照", "发张", "给我看看")
 _NEGATIVE_MARKERS = (
     "难过", "伤心", "不开心", "烦", "焦虑", "害怕", "压力", "糟糕", "委屈",
     "生气", "失落", "崩溃", "累死", "有点累", "好累", "很累", "累了", "疲惫",
@@ -152,7 +158,14 @@ def derive_conversation_signals(
     minimal = normalized in _MINIMAL_ACKS
     clarification = any(marker in text for marker in _CLARIFICATION_MARKERS)
     topic_shift = any(marker in text for marker in _TOPIC_SWITCH_MARKERS)
-    image_request = any(marker in text for marker in _IMAGE_REQUEST_MARKERS)
+    image_request = (
+        any(marker in text for marker in _IMAGE_REQUEST_MARKERS)
+        or any(marker in text for marker in _PERSONAL_IMAGE_REQUEST_MARKERS)
+        or (
+            any(marker in text for marker in _AMBIGUOUS_IMAGE_REQUEST_MARKERS)
+            and _recent_has_photo_context(recent_messages)
+        )
+    )
     direct_question = _is_question(text)
     negative = any(marker in text for marker in _NEGATIVE_MARKERS)
     positive = any(marker in text for marker in _POSITIVE_MARKERS)
@@ -429,6 +442,13 @@ def _recent_user_had_negative_cue(messages: list[ChatTurn]) -> bool:
     return any(
         turn.sender == "user" and any(marker in turn.content for marker in _NEGATIVE_MARKERS)
         for turn in messages[-8:]
+    )
+
+
+def _recent_has_photo_context(messages: list[ChatTurn]) -> bool:
+    return any(
+        any(marker in turn.content for marker in _PHOTO_CONTEXT_MARKERS)
+        for turn in messages[-4:]
     )
 
 

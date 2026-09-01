@@ -16,7 +16,10 @@ from ..schemas import (
 )
 
 _CANCEL_MARKERS = ("算了", "不看了", "先别发", "以后再看", "不用了")
-_SELFIE_MARKERS = ("自拍", "你本人", "你自己的照片", "你的照片", "本人照片")
+_SELFIE_MARKERS = (
+    "自拍", "你本人", "你自己的照片", "你的照片", "本人照片",
+    "发张你的看看", "发张你自己的", "给我看看你的",
+)
 _PERSONAL_MARKERS = ("生活照", "私照", "私人照片", "个人照片")
 _RELATIONSHIP_RANK = {"low": 0, "medium": 1, "high": 2}
 
@@ -69,6 +72,18 @@ def normalize_photo_action(
     if story_authorized:
         approved = policy.story_offer_action
         reason = "approved_story_offer"
+    elif (
+        category in {PhotoCategory.personal, PhotoCategory.selfie}
+        and proposed is PhotoAction.none
+    ):
+        approved = (
+            policy.close_request
+            if relationship.band is RelationshipBand.high
+            else policy.familiar_request
+            if relationship.band is RelationshipBand.medium
+            else policy.stranger_request
+        )
+        reason = "personal_request_policy"
     elif (
         category in {PhotoCategory.personal, PhotoCategory.selfie}
         and relationship.band is RelationshipBand.high

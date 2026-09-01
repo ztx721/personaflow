@@ -514,6 +514,7 @@ class ConversationService:
             photo_category=photo_category,
             asset_attached=asset_attached,
             story_photo_available=story_photo_available,
+            canonical_story_facts=list(story.canonical_facts) if story else [],
         )
 
     def _story_context(self, story, story_state) -> StoryContext | None:

@@ -153,3 +153,17 @@ def test_generator_prompt_exposes_typed_guidance_compactly():
     assert "target_length: very_short" in prompt
     assert "may_ask_question: false" in prompt
     assert "avoid_repetition: true" in prompt
+
+
+def test_personal_photo_request_is_explicit_image_request():
+    for message in ("你自己的照片呢", "发张你的看看"):
+        signals, _ = _derive(message)
+        assert signals.latest_user_act is UserAct.image_request
+
+
+def test_ambiguous_yours_requires_recent_photo_context():
+    signals, _ = _derive("你的呢")
+    assert signals.latest_user_act is not UserAct.image_request
+    recent = [ChatTurn(sender="character", content="这是朋友家的猫照片。")]
+    signals, _ = _derive("你的呢", recent)
+    assert signals.latest_user_act is UserAct.image_request
