@@ -52,6 +52,10 @@ _PROXIMITY = (
 _BOUNDARY = ("算了", "不想说", "别问了", "不提了", "先这样")
 
 
+_SERVICE_OFFER = ("我可以尽量回答", "有什么想知道的都可以问我", "我可以帮你")
+_SELF_SUMMARY = ("其实都是些", "其实也就是些", "总之我就是这样的人")
+
+
 def analyze_visible_reply(user_text: str, reply: str) -> dict[str, object]:
     emotional = any(marker in user_text for marker in _EMOTION)
     asks_advice = any(marker in user_text for marker in ("怎么办", "怎么做", "建议", "该不该"))
@@ -76,4 +80,6 @@ def analyze_visible_reply(user_text: str, reply: str) -> dict[str, object]:
         "companion_language": companion,
         "boundary_restart": restart,
         "question": question,
+        "assistant_offer": any(marker in reply for marker in _SERVICE_OFFER),
+        "self_summary": any(marker in reply for marker in _SELF_SUMMARY),
     }

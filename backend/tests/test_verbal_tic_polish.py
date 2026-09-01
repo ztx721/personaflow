@@ -72,11 +72,23 @@ def test_subsequent_ordinary_reply_silently_keeps_disliked_opening_avoided():
 def test_occasional_filler_remains_allowed_without_repetition_or_feedback():
     prompt = generator_system_prompt(context(
         "最近看什么书？",
-        [ChatTurn(sender="character", content="唔……一本旧游记。")],
+        [
+            ChatTurn(sender="character", content="唔……一本旧游记。"),
+            ChatTurn(sender="character", content="后来又翻了翻小说。"),
+        ],
     ))
 
     assert "style_feedback_active: false" in prompt
     assert "openings_to_avoid_this_turn: []" in prompt
+
+
+def test_immediately_repeating_the_latest_filler_is_discouraged():
+    prompt = generator_system_prompt(context(
+        "你呢",
+        [ChatTurn(sender="character", content="唔……我喜欢旧书。")],
+    ))
+
+    assert 'openings_to_avoid_this_turn: ["唔"]' in prompt
 
 
 def test_different_openings_do_not_form_an_identical_streak():
